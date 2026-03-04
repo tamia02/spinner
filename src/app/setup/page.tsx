@@ -3,16 +3,19 @@
 import React, { useState, useEffect } from "react";
 import { ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const steps = ["Welcome", "Connect Channels", "Voice Profile", "Dry Run", "Complete"];
 
-export default function OnboardingPage() {
+function OnboardingContent() {
     const router = useRouter();
     const [currentStep, setCurrentStep] = useState(0);
     const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
     const [userName, setUserName] = useState("User");
     const [loading, setLoading] = useState(true);
+
+    const searchParams = useSearchParams();
+    const connectedParam = searchParams.get("connected");
 
     useEffect(() => {
         // Fetch real connection status
@@ -31,8 +34,7 @@ export default function OnboardingPage() {
                     }
 
                     // Jump to step 1 if return from OAuth
-                    const params = new URLSearchParams(window.location.search);
-                    if (params.get("connected")) {
+                    if (connectedParam) {
                         setCurrentStep(1);
                         router.replace("/setup"); // clear the URL bar
                     }
@@ -40,7 +42,7 @@ export default function OnboardingPage() {
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    }, [router]);
+    }, [router, connectedParam, currentStep]);
 
     return (
         <div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center p-4 font-['Space_Grotesk']">
@@ -183,5 +185,13 @@ export default function OnboardingPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function OnboardingPage() {
+    return (
+        <React.Suspense fallback={<div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-300" /></div>}>
+            <OnboardingContent />
+        </React.Suspense>
     );
 }
