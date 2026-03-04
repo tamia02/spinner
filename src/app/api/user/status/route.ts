@@ -11,22 +11,30 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                linkedinToken: true,
-                twitterToken: true
-            }
-        });
+        let dbUser = null;
+        try {
+            dbUser = await prisma.user.findUnique({
+                where: { id: user.id },
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    linkedinToken: true,
+                    twitterToken: true
+                }
+            });
+        } catch (dbError) {
+            console.error("Prisma lookup failed in status route:", dbError);
+            // Don't crash the whole route, just proceed with null dbUser
+        }
 
         return NextResponse.json({
             success: true,
             user: {
-                ...dbUser,
-                linkedinToken: !!dbUser?.linkedinToken, // boolean flag only for security
+                id: user.id,
+                email: user.email,
+                name: dbUser?.name || user.user_metadata?.full_name,
+                linkedinToken: !!dbUser?.linkedinToken,
                 twitterToken: !!dbUser?.twitterToken
             }
         });
