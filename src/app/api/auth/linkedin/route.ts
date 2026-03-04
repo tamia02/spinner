@@ -1,8 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     const clientId = process.env.LINKEDIN_CLIENT_ID;
-    const redirectUri = "http://localhost:3000/api/auth/callback/linkedin";
+
+    // Dynamically build the redirect URI based on the current host
+    const protocol = req.headers.get("x-forwarded-proto") || "http";
+    const host = req.headers.get("host");
+    const baseUrl = `${protocol}://${host}`;
+    const redirectUri = `${baseUrl}/api/auth/callback/linkedin`;
+
     const scope = "w_member_social profile openid email";
     const state = "splinter_auth_" + Math.random().toString(36).substring(7);
 

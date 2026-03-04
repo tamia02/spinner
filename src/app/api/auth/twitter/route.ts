@@ -1,8 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     const clientId = process.env.TWITTER_CLIENT_ID;
-    const redirectUri = "http://localhost:3000/api/auth/callback/twitter";
+
+    // Dynamically build the redirect URI based on the current host
+    const protocol = req.headers.get("x-forwarded-proto") || "http";
+    const host = req.headers.get("host");
+    const baseUrl = `${protocol}://${host}`;
+    const redirectUri = `${baseUrl}/api/auth/callback/twitter`;
+
     const scope = "tweet.read tweet.write users.read offline.access";
     const state = "splinter_auth_" + Math.random().toString(36).substring(7);
     const codeChallenge = "splinter_challenge"; // Using plain for the demonstration
