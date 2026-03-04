@@ -1,8 +1,23 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
+    const [userName, setUserName] = useState("User");
+
+    useEffect(() => {
+        fetch("/api/user/status")
+            .then(res => res.json())
+            .then(data => {
+                if (data.user) {
+                    setUserName(data.user.name || data.user.email?.split("@")[0] || "User");
+                }
+            })
+            .catch(console.error);
+    }, []);
+
     return (
         <div className="space-y-6 max-w-6xl">
             <div className="flex justify-between items-end mb-4">
@@ -10,7 +25,7 @@ export default function DashboardPage() {
                     <p className="font-['IBM_Plex_Mono'] text-[9px] uppercase text-gray-400 tracking-[0.2em] mb-2">
             // DASHBOARD
                     </p>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back, Mock User</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back, {userName}</h1>
                 </div>
                 <Link href="/dashboard/create">
                     <button className="bg-black text-white font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-[0.15em] px-4 py-3 hover:bg-black/90 transition flex items-center gap-2">

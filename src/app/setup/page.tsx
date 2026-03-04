@@ -25,6 +25,10 @@ export default function OnboardingPage() {
                     if (data.user.linkedinToken) platforms.push("linkedin");
                     if (data.user.twitterToken) platforms.push("twitter");
                     setConnectedPlatforms(platforms);
+                    // Automatically skip the "Welcome" step if they already have connections
+                    if (platforms.length > 0 && currentStep === 0) {
+                        setCurrentStep(1);
+                    }
 
                     // Jump to step 1 if return from OAuth
                     const params = new URLSearchParams(window.location.search);
