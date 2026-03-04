@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  linkedinToken String?
+  twitterToken  String?
+}
+
+model VoiceProfile {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  audience  String?
+  tone      String   @default("PROFESSIONAL")
+  formality Int      @default(50)
+  humor     Int      @default(20)
+  emoji     Int      @default(10)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GeneratedContent {
+  id        String   @id @default(uuid())
+  userId    String
+  source    String
+  platform  String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model ScheduledPost {
+  id          String   @id @default(uuid())
+  userId      String
+  platform    String
+  content     String
+  scheduledAt DateTime
+  status      String   @default("PENDING") // PENDING | POSTED | FAILED
+  createdAt   DateTime @default(now())
+}
