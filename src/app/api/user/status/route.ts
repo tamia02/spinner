@@ -31,6 +31,10 @@ export async function GET() {
             }
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("User status API error:", error);
+        return NextResponse.json({
+            error: "Failed to fetch user status",
+            details: error.message
+        }, { status: 500 });
     }
 }
