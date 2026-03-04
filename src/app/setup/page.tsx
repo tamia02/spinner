@@ -9,13 +9,25 @@ const steps = ["Welcome", "Connect Channels", "Voice Profile", "Dry Run", "Compl
 
 function OnboardingContent() {
     const router = useRouter();
-    const [currentStep, setCurrentStep] = useState(0);
+    const searchParams = useSearchParams();
+    const connectedParam = searchParams.get("connected");
+
+    // Initialize step from localStorage so the user doesn't flash back to step 0 after OAuth reload
+    const [currentStep, setCurrentStep] = useState<number>(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("splinter_setup_step");
+            if (saved) return parseInt(saved, 10);
+        }
+        return 0;
+    });
     const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
     const [userName, setUserName] = useState("User");
     const [loading, setLoading] = useState(true);
 
-    const searchParams = useSearchParams();
-    const connectedParam = searchParams.get("connected");
+    // Persist step to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem("splinter_setup_step", String(currentStep));
+    }, [currentStep]);
 
     useEffect(() => {
         // Fetch real connection status
@@ -24,25 +36,25 @@ function OnboardingContent() {
             .then(data => {
                 if (data.user) {
                     setUserName(data.user.email?.split("@")[0] || "User");
-                    const platforms = [];
+                    const platforms: string[] = [];
                     if (data.user.linkedinToken) platforms.push("linkedin");
                     if (data.user.twitterToken) platforms.push("twitter");
                     setConnectedPlatforms(platforms);
-                    // Automatically skip the "Welcome" step if they already have connections
-                    if (platforms.length > 0 && currentStep === 0) {
-                        setCurrentStep(1);
-                    }
 
-                    // Jump to step 1 if return from OAuth
+                    // If coming back from OAuth, advance to step 1 and clean the URL
                     if (connectedParam) {
                         setCurrentStep(1);
-                        router.replace("/setup"); // clear the URL bar
+                        router.replace("/setup");
+                    } else if (platforms.length > 0 && currentStep === 0) {
+                        // Auto-skip welcome if already connected
+                        setCurrentStep(1);
                     }
                 }
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    }, [router, connectedParam, currentStep]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [connectedParam]);
 
     return (
         <div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center p-4 font-['Space_Grotesk']">
@@ -97,7 +109,10 @@ function OnboardingContent() {
                                 <p className="text-gray-500 leading-relaxed text-[15px] mb-8">Authorize SPINNER to post on your behalf.</p>
                                 <div className="space-y-3">
                                     <button
-                                        onClick={() => window.location.href = "/api/auth/linkedin"}
+                                        onClick={() => {
+                                            localStorage.setItem("splinter_setup_step", "1");
+                                            window.location.href = "/api/auth/linkedin";
+                                        }}
                                         disabled={connectedPlatforms.includes('linkedin')}
                                         className="w-full border border-gray-200 p-4 font-['Space_Grotesk'] block hover:border-black transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -109,7 +124,10 @@ function OnboardingContent() {
                                         </div>
                                     </button>
                                     <button
-                                        onClick={() => window.location.href = "/api/auth/twitter"}
+                                        onClick={() => {
+                                            localStorage.setItem("splinter_setup_step", "1");
+                                            window.location.href = "/api/auth/twitter";
+                                        }}
                                         disabled={connectedPlatforms.includes('twitter')}
                                         className="w-full border border-gray-200 p-4 font-['Space_Grotesk'] block hover:border-black transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
