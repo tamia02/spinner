@@ -17,11 +17,14 @@ export async function GET(request: Request) {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                // In production, exchange `code` for an access_token here.
-                // For demonstration, we save a simulated token to prove the DB wiring works.
-                await prisma.user.update({
+                await prisma.user.upsert({
                     where: { id: user.id },
-                    data: { twitterToken: "mock_twitter_token_" + code }
+                    update: { twitterToken: "mock_twitter_token_" + code },
+                    create: {
+                        id: user.id,
+                        email: user.email!,
+                        twitterToken: "mock_twitter_token_" + code
+                    }
                 });
             }
             return NextResponse.redirect(new URL("/setup?connected=twitter", request.url));

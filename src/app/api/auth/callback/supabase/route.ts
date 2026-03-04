@@ -1,7 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url)
@@ -25,9 +26,19 @@ export async function GET(request: NextRequest) {
                 },
             }
         )
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (!error) {
-            return NextResponse.redirect(`${origin}/dashboard`)
+        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (!error && session?.user) {
+            // Sync user to Prisma
+            await prisma.user.upsert({
+                where: { id: session.user.id },
+                update: { email: session.user.email! },
+                create: {
+                    id: session.user.id,
+                    email: session.user.email!,
+                    name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0]
+                }
+            })
+            return NextResponse.redirect(`${origin}/setup`)
         }
     }
 

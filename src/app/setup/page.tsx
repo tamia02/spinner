@@ -23,6 +23,7 @@ function OnboardingContent() {
     const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
     const [userName, setUserName] = useState("User");
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(searchParams.get("error"));
 
     // Persist step to localStorage whenever it changes
     useEffect(() => {
@@ -44,6 +45,7 @@ function OnboardingContent() {
                     // If coming back from OAuth, advance to step 1 and clean the URL
                     if (connectedParam) {
                         setCurrentStep(1);
+                        setError(null);
                         router.replace("/setup");
                     } else if (platforms.length > 0 && currentStep === 0) {
                         // Auto-skip welcome if already connected
@@ -52,7 +54,11 @@ function OnboardingContent() {
                 }
                 setLoading(false);
             })
-            .catch(() => setLoading(false));
+            .catch((err) => {
+                console.error("Status fetch error:", err);
+                setError("Failed to fetch account status.");
+                setLoading(false);
+            });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [connectedParam]);
 
@@ -92,6 +98,11 @@ function OnboardingContent() {
                     </div>
                 ) : (
                     <>
+                        {error && (
+                            <div className="mb-8 p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-['IBM_Plex_Mono'] uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
+                                [ Error ]: {error === 'access_denied' ? 'Authorization denied' : error === 'server_error' ? 'Internal server error' : error}
+                            </div>
+                        )}
                         {/* Step 0: Welcome */}
                         {currentStep === 0 && (
                             <div className="flex-1 animate-in fade-in slide-in-from-right-4 duration-500">
