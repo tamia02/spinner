@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Post tweet via Twitter API v2
-        const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
+        let tweetRes = await fetch("https://api.twitter.com/2/tweets", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${dbUser.twitterToken}`,
@@ -25,6 +25,20 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({ text: content.substring(0, 280) }) // Twitter char limit
         });
+
+        // Simple retry for 503 Service Unavailable
+        if (tweetRes.status === 503) {
+            console.warn("Twitter API 503 detected. Retrying in 1s...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            tweetRes = await fetch("https://api.twitter.com/2/tweets", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${dbUser.twitterToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: content.substring(0, 280) })
+            });
+        }
 
         if (!tweetRes.ok) {
             const errorData = await tweetRes.json().catch(() => ({ message: "Unknown Twitter API error" }));

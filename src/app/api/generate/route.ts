@@ -64,7 +64,7 @@ function getPlatformPrompt(platform: string, profile: string, sourceText: string
         : '';
 
     const baseDirectives: Record<string, string> = {
-        'twitter': `Write a 3-tweet thread from the source content using a ${toneGuide} tone. Use 🧵 for the first tweet. Number them (1/3, 2/3, 3/3). Short, punchy sentences. No hashtags.`,
+        'twitter': `Write exactly ONE high-impact 3-tweet thread from the source content using a ${toneGuide} tone. Use 🧵 for the first tweet. Number them (1/3, 2/3, 3/3). Short, punchy sentences. Provide only the best version. Do not offer multiple options. No hashtags.`,
         'linkedin': `Write a LinkedIn post with clear spacing (one idea per paragraph) and a strong opening line. Tone: ${toneGuide}. End with an engaging question. No hashtags.`,
         'instagram': `Write an Instagram caption that captures the most interesting or emotional angle from the source. Tone: ${toneGuide}. No hashtags.`,
         'newsletter': `Write a short newsletter summary (3-4 paragraphs) from the source. Tone: ${toneGuide}. Include a catchy subject line at the top. Use bullet points for key takeaways. No hashtags.`,

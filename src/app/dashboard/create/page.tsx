@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FileText, Link as LinkIcon, Youtube, Mic, Loader2, Check, Send, Clock, X } from "lucide-react";
+import { FileText, Link as LinkIcon, Youtube, Mic, Loader2, Check, Send, Clock, X, Sparkles, RotateCcw } from "lucide-react";
 
 interface ResultItem {
     platform: string;
@@ -28,6 +28,8 @@ export default function CreateContentPage() {
     const [scheduleDateTime, setScheduleDateTime] = useState("");
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [imageFileName, setImageFileName] = useState<string | null>(null);
+    const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
+    const [generatingImages, setGeneratingImages] = useState<Record<string, boolean>>({});
 
     // Fetch voice profiles on mount
     useEffect(() => {
@@ -137,6 +139,27 @@ export default function CreateContentPage() {
             }
         } catch {
             alert("Network error when scheduling.");
+        }
+    };
+
+    const handleGenerateImage = async (res: ResultItem) => {
+        setGeneratingImages(prev => ({ ...prev, [res.platform]: true }));
+        try {
+            const response = await fetch("/api/generate/image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: res.content, platform: res.platform }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setGeneratedImages(prev => ({ ...prev, [res.platform]: data.imageUrl }));
+            } else {
+                alert(data.error || "Failed to generate AI image.");
+            }
+        } catch {
+            alert("Network error when generating image.");
+        } finally {
+            setGeneratingImages(prev => ({ ...prev, [res.platform]: false }));
         }
     };
 
@@ -301,13 +324,43 @@ export default function CreateContentPage() {
                                                 className="flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider text-gray-400 hover:text-black transition">
                                                 <Clock className="h-3 w-3" /> SCHEDULE
                                             </button>
+                                            <button
+                                                onClick={() => handleGenerateImage(res)}
+                                                disabled={generatingImages[res.platform]}
+                                                className="flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider text-indigo-500 hover:text-indigo-700 transition"
+                                            >
+                                                {generatingImages[res.platform] ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : generatedImages[res.platform] ? (
+                                                    <RotateCcw className="h-3 w-3" />
+                                                ) : (
+                                                    <Sparkles className="h-3 w-3" />
+                                                )}
+                                                {generatingImages[res.platform] ? "Generating..." : generatedImages[res.platform] ? "Regenerate" : "AI Image"}
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="font-['Space_Grotesk'] text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                                         {res.content}
                                     </div>
 
-                                    {selectedImage && (
+                                    {generatedImages[res.platform] && (
+                                        <div className="mt-6 pt-6 border-t border-indigo-50 animate-in zoom-in-95 duration-500">
+                                            <p className="font-['IBM_Plex_Mono'] text-[10px] text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <Sparkles className="h-3 w-3" /> // AI GENERATED VISUAL
+                                            </p>
+                                            <div className="relative group">
+                                                <img
+                                                    src={generatedImages[res.platform]}
+                                                    alt="AI Generated"
+                                                    className="max-h-[350px] w-auto rounded border border-indigo-100 shadow-lg group-hover:shadow-indigo-100 transition-all"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded pointer-events-none" />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedImage && !generatedImages[res.platform] && (
                                         <div className="mt-6 pt-6 border-t border-gray-100">
                                             <p className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 uppercase tracking-widest mb-3">// ATTACHED MEDIA</p>
                                             <img src={selectedImage} alt="Attachment" className="max-h-[300px] w-auto rounded border border-gray-100 shadow-sm" />
