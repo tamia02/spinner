@@ -7,6 +7,32 @@ export default function SetupPage() {
     const [activeTab, setActiveTab] = useState("Profile");
     const [userData, setUserData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+    const handleDisconnect = async (e: React.MouseEvent, platform: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`[Setup] Disconnecting platform: ${platform}`);
+        setDisconnecting(platform);
+        try {
+            const res = await fetch("/api/auth/disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ platform })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Successfully disconnected ${platform}. The page will reload to confirm.`);
+                window.location.reload();
+            } else {
+                alert(data.error || "Failed to disconnect");
+            }
+        } catch (err) {
+            alert("Error disconnecting account");
+        } finally {
+            setDisconnecting(null);
+        }
+    };
 
     const TABS = ["Profile", "Platforms", "Notifications", "Data"];
 
@@ -142,8 +168,12 @@ export default function SetupPage() {
                             </div>
                         </div>
                         {userData?.linkedinToken ? (
-                            <button className="border border-red-200 text-red-600 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider px-3 py-1.5 hover:bg-red-50">
-                                DISCONNECT
+                            <button
+                                onClick={(e) => handleDisconnect(e, 'linkedin')}
+                                disabled={disconnecting === 'linkedin'}
+                                className="border border-red-200 text-red-600 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
+                            >
+                                {disconnecting === 'linkedin' ? 'DISCONNECTING...' : 'DISCONNECT'}
                             </button>
                         ) : (
                             <button
@@ -168,8 +198,12 @@ export default function SetupPage() {
                             </div>
                         </div>
                         {userData?.twitterToken ? (
-                            <button className="border border-red-200 text-red-600 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider px-3 py-1.5 hover:bg-red-50">
-                                DISCONNECT
+                            <button
+                                onClick={(e) => handleDisconnect(e, 'twitter')}
+                                disabled={disconnecting === 'twitter'}
+                                className="border border-red-200 text-red-600 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
+                            >
+                                {disconnecting === 'twitter' ? 'DISCONNECTING...' : 'DISCONNECT'}
                             </button>
                         ) : (
                             <button

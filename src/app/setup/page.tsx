@@ -24,6 +24,31 @@ function OnboardingContent() {
     const [userName, setUserName] = useState("User");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(searchParams.get("error"));
+    const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+    const handleDisconnect = async (e: React.MouseEvent, platform: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDisconnecting(platform);
+        try {
+            const res = await fetch("/api/auth/disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ platform })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setConnectedPlatforms(prev => prev.filter(p => p !== platform));
+                alert(`Successfully disconnected ${platform}.`);
+            } else {
+                alert(data.error || "Failed to disconnect");
+            }
+        } catch (err) {
+            alert("Error disconnecting account");
+        } finally {
+            setDisconnecting(null);
+        }
+    };
 
     // Persist step to localStorage whenever it changes
     useEffect(() => {
@@ -128,9 +153,19 @@ function OnboardingContent() {
                                     >
                                         <div className="flex justify-between items-center">
                                             <span className="font-semibold text-gray-900">LinkedIn</span>
-                                            <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('linkedin') ? 'text-green-600 group-hover:text-black' : 'text-gray-400 group-hover:text-black'}`}>
-                                                {connectedPlatforms.includes('linkedin') ? 'CONNECTED (RECONNECT)' : 'CONNECT'}
-                                            </span>
+                                            <div className="flex items-center gap-4">
+                                                {connectedPlatforms.includes('linkedin') && (
+                                                    <span
+                                                        onClick={(e) => handleDisconnect(e, 'linkedin')}
+                                                        className="font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider text-red-500 hover:text-red-700 z-10"
+                                                    >
+                                                        {disconnecting === 'linkedin' ? 'DISCONNECTING...' : 'DISCONNECT'}
+                                                    </span>
+                                                )}
+                                                <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('linkedin') ? 'text-green-600 group-hover:text-black' : 'text-gray-400 group-hover:text-black'}`}>
+                                                    {connectedPlatforms.includes('linkedin') ? 'RECONNECT' : 'CONNECT'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </button>
                                     <button
@@ -142,9 +177,19 @@ function OnboardingContent() {
                                     >
                                         <div className="flex justify-between items-center">
                                             <span className="font-semibold text-gray-900">X / Twitter</span>
-                                            <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('twitter') ? 'text-green-600 group-hover:text-black' : 'text-gray-400 group-hover:text-black'}`}>
-                                                {connectedPlatforms.includes('twitter') ? 'CONNECTED (RECONNECT)' : 'CONNECT'}
-                                            </span>
+                                            <div className="flex items-center gap-4">
+                                                {connectedPlatforms.includes('twitter') && (
+                                                    <span
+                                                        onClick={(e) => handleDisconnect(e, 'twitter')}
+                                                        className="font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider text-red-500 hover:text-red-700 z-10"
+                                                    >
+                                                        {disconnecting === 'twitter' ? 'DISCONNECTING...' : 'DISCONNECT'}
+                                                    </span>
+                                                )}
+                                                <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('twitter') ? 'text-green-600 group-hover:text-black' : 'text-gray-400 group-hover:text-black'}`}>
+                                                    {connectedPlatforms.includes('twitter') ? 'RECONNECT' : 'CONNECT'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </button>
                                 </div>
