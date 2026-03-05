@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Edit2, X, Star, Trash2, Loader2 } from "lucide-react";
+import { Plus, Edit2, X, Star, Trash2, Loader2, Sparkles } from "lucide-react";
 
 interface VoiceProfile {
     id: string;
@@ -12,6 +12,8 @@ interface VoiceProfile {
     humor: number;
     emoji: number;
     isDefault: boolean;
+    writingStyle?: string;
+    writingSample?: string;
 }
 
 const TONE_OPTIONS = [
@@ -25,6 +27,9 @@ export default function VoiceProfilesPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<Partial<VoiceProfile>>({});
     const [saving, setSaving] = useState(false);
+    const [sampleText, setSampleText] = useState("");
+    const [analyzing, setAnalyzing] = useState(false);
+    const [analyzeResult, setAnalyzeResult] = useState<string | null>(null);
 
     useEffect(() => {
         fetchProfiles();
@@ -41,8 +46,11 @@ export default function VoiceProfilesPage() {
     };
 
     const handleEdit = (p?: VoiceProfile) => {
+        setSampleText("");
+        setAnalyzeResult(null);
         if (p) {
             setFormData(p);
+            setSampleText(p.writingSample || "");
             setEditingId(p.id);
         } else {
             setFormData({
@@ -55,6 +63,40 @@ export default function VoiceProfilesPage() {
                 isDefault: profiles.length === 0,
             });
             setEditingId("new");
+        }
+    };
+
+    const handleAnalyzeVoice = async () => {
+        if (!sampleText.trim() || sampleText.trim().length < 20) {
+            alert("Please paste at least one of your own posts (minimum 20 characters).");
+            return;
+        }
+        setAnalyzing(true);
+        setAnalyzeResult(null);
+        try {
+            const res = await fetch("/api/profiles/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sampleText, profileId: editingId !== "new" ? editingId : undefined }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setFormData(prev => ({
+                    ...prev,
+                    formality: data.formality,
+                    humor: data.humor,
+                    emoji: data.emoji,
+                    writingStyle: data.styleDescription,
+                    writingSample: sampleText,
+                }));
+                setAnalyzeResult(data.styleDescription);
+            } else {
+                alert(data.error || "Analysis failed.");
+            }
+        } catch {
+            alert("Network error during analysis.");
+        } finally {
+            setAnalyzing(false);
         }
     };
 
@@ -180,6 +222,39 @@ export default function VoiceProfilesPage() {
                             </p>
 
                             <div className="space-y-12">
+                                {/* Analyze My Voice */}
+                                <section className="border border-dashed border-gray-300 p-6 bg-white">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-gray-500 tracking-[0.2em] mb-1">
+                                                // ANALYZE MY VOICE
+                                            </p>
+                                            <p className="text-sm text-gray-500">Paste 1-3 posts you&apos;ve written. AI will analyze your style and auto-calibrate the sliders.</p>
+                                        </div>
+                                        <Sparkles className="h-4 w-4 text-gray-300 flex-shrink-0 mt-1" />
+                                    </div>
+                                    <textarea
+                                        value={sampleText}
+                                        onChange={e => setSampleText(e.target.value)}
+                                        placeholder={"Paste your own posts here...\n\nPost 1:\n...\n\nPost 2:\n..."}
+                                        className="w-full min-h-[140px] border border-gray-200 bg-gray-50 p-4 font-['Space_Grotesk'] text-sm focus:outline-none focus:border-black placeholder:text-gray-400 resize-y"
+                                    />
+                                    <div className="flex items-center gap-4 mt-3 flex-wrap">
+                                        <button
+                                            onClick={handleAnalyzeVoice}
+                                            disabled={analyzing || sampleText.trim().length < 20}
+                                            className="flex items-center gap-2 bg-black text-white font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider px-5 py-3 hover:bg-black/80 transition disabled:bg-gray-300"
+                                        >
+                                            {analyzing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> ANALYZING...</> : <><Sparkles className="h-3.5 w-3.5" /> ANALYZE MY VOICE</>}
+                                        </button>
+                                        {analyzeResult && (
+                                            <p className="text-[12px] text-green-700 font-['Space_Grotesk'] italic flex-1">
+                                                ✓ {analyzeResult}
+                                            </p>
+                                        )}
+                                    </div>
+                                </section>
+
                                 {/* Basic Settings */}
                                 <section>
                                     <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-gray-500 tracking-[0.2em] mb-6">

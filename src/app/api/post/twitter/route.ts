@@ -27,12 +27,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (!tweetRes.ok) {
-            const errorData = await tweetRes.json();
+            const errorData = await tweetRes.json().catch(() => ({ message: "Unknown Twitter API error" }));
+            const message = errorData?.detail || errorData?.errors?.[0]?.message || errorData?.message || JSON.stringify(errorData);
             console.error("Twitter post error:", errorData);
-            return NextResponse.json({ error: "Twitter posting failed", details: errorData }, { status: 500 });
+            return NextResponse.json({ error: `Twitter posting failed: ${message}`, details: errorData }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, message: "Posted to X/Twitter successfully!" });
+        const tweetData = await tweetRes.json();
+        return NextResponse.json({ success: true, message: "Posted to X/Twitter successfully!", tweetId: tweetData?.data?.id });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

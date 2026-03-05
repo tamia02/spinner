@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FileText, Link as LinkIcon, Youtube, Mic, Loader2, Check, Send, Clock } from "lucide-react";
+import { FileText, Link as LinkIcon, Youtube, Mic, Loader2, Check, Send, Clock, X } from "lucide-react";
 
 interface ResultItem {
     platform: string;
@@ -26,6 +26,8 @@ export default function CreateContentPage() {
     const [publishing, setPublishing] = useState<Record<string, string>>({});
     const [schedulingFor, setSchedulingFor] = useState<string | null>(null);
     const [scheduleDateTime, setScheduleDateTime] = useState("");
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [imageFileName, setImageFileName] = useState<string | null>(null);
 
     // Fetch voice profiles on mount
     useEffect(() => {
@@ -41,6 +43,22 @@ export default function CreateContentPage() {
             })
             .catch(err => console.error("Failed to load profiles:", err));
     }, []);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert("File too large. Max 5MB.");
+                return;
+            }
+            setImageFileName(file.name);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSelectedImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const togglePlatform = (p: string) => {
         setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
@@ -213,6 +231,34 @@ export default function CreateContentPage() {
                     </div>
                 </div>
 
+                <div className="bg-white p-6 border border-gray-200 shadow-sm mt-6">
+                    <div className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 tracking-wider mb-4 uppercase text-center md:text-left">CREATIVE ATTACHMENTS (OPTIONAL)</div>
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                        <label className="cursor-pointer bg-gray-50 border border-dashed border-gray-300 p-8 flex flex-col items-center justify-center w-full md:w-48 hover:bg-gray-100 transition">
+                            <input type="file" accept="image/png,image/jpeg,image/gif" onChange={handleImageChange} className="hidden" />
+                            <LinkIcon className="h-5 w-5 text-gray-400 mb-2" />
+                            <span className="font-['Space_Grotesk'] text-[11px] text-gray-500">{imageFileName ? "Change Image" : "Attach Image"}</span>
+                        </label>
+                        <div className="flex-1">
+                            {selectedImage ? (
+                                <div className="relative inline-block group">
+                                    <img src={selectedImage} alt="Preview" className="h-24 w-auto rounded border border-gray-200" />
+                                    <button onClick={() => { setSelectedImage(null); setImageFileName(null); }} className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition">
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                    <p className="text-[10px] text-gray-400 font-['IBM_Plex_Mono'] mt-2 uppercase tracking-tight">{imageFileName}</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-400 font-['Space_Grotesk']">
+                                    Include an image for better engagement on Twitter and LinkedIn.
+                                    <br />
+                                    <span className="text-[11px] text-amber-600 italic">Note: Attach manually when publishing to X/Twitter.</span>
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 <button
                     onClick={handleGenerate}
                     disabled={!source.trim() || platforms.length === 0 || isGenerating || availableProfiles.length === 0}
@@ -260,6 +306,13 @@ export default function CreateContentPage() {
                                     <div className="font-['Space_Grotesk'] text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                                         {res.content}
                                     </div>
+
+                                    {selectedImage && (
+                                        <div className="mt-6 pt-6 border-t border-gray-100">
+                                            <p className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 uppercase tracking-widest mb-3">// ATTACHED MEDIA</p>
+                                            <img src={selectedImage} alt="Attachment" className="max-h-[300px] w-auto rounded border border-gray-100 shadow-sm" />
+                                        </div>
+                                    )}
                                     {isSchedulingThis && (
                                         <div className="mt-6 pt-6 border-t border-gray-100 flex items-center gap-4 animate-in fade-in duration-200">
                                             <input type="datetime-local" value={scheduleDateTime} onChange={e => setScheduleDateTime(e.target.value)}

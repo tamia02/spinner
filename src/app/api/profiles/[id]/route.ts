@@ -24,6 +24,8 @@ export async function PUT(
             humor: body.humor,
             emoji: body.emoji,
             isDefault: body.isDefault,
+            writingSample: body.writingSample,
+            writingStyle: body.writingStyle,
         },
     });
     return NextResponse.json(profile);

@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
             humor: body.humor ?? 20,
             emoji: body.emoji ?? 10,
             isDefault: body.isDefault ?? false,
+            writingSample: body.writingSample,
+            writingStyle: body.writingStyle,
         },
     });
     return NextResponse.json(profile);

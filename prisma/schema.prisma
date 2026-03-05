@@ -29,6 +29,8 @@ model VoiceProfile {
   humor     Int      @default(20)
   emoji     Int      @default(10)
   isDefault Boolean  @default(false)
+  writingSample String? // Raw sample posts pasted by the user
+  writingStyle  String? // AI-analyzed style description used in prompts
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
