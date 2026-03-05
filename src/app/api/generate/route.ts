@@ -147,9 +147,9 @@ export async function POST(req: Request) {
                 const result = await model.generateContent(prompt);
                 const responseText = result.response.text();
                 return { platform: p, content: responseText.trim() };
-            } catch (err) {
+            } catch (err: any) {
                 console.error(`Error generating for ${p}:`, err);
-                return { platform: p, content: `[Error: Failed to generate for ${p}]` };
+                return { platform: p, content: `[Error: ${err.message}]` };
             }
         });
 
