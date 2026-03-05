@@ -11,31 +11,49 @@ const isValidUrl = (urlString: string) => {
 
 async function scrapeUrl(url: string): Promise<string> {
     try {
-        // Handle YouTube URLs specifically
-        if (url.includes('youtube.com') || url.includes('youtu.be')) {
-            try {
-                const transcript = await YoutubeTranscript.fetchTranscript(url);
-                const text = transcript.map(t => t.text).join(' ');
-                return text.substring(0, 15000); // Limit to reasonable length
-            } catch (ytError) {
-                console.error("YouTube Transcript Error:", ytError);
-                return `[Could not extract YouTube transcript. The video might not have captions enabled.]`;
-            }
-        }
+        let textContent = "";
 
+        // 1. Always fetch the page HTML to get metadata (Title/Description)
         const response = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
-        if (!response.ok) throw new Error("Failed to fetch URL");
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        $('script, style, nav, footer, header, aside, .ad, .advertisement, iframe, svg').remove();
 
-        let mainText = $('main, article, .content, .post').text();
-        if (!mainText.trim()) {
-            mainText = $('body').text();
+        if (response.ok) {
+            const html = await response.text();
+            const $ = cheerio.load(html);
+
+            // Extract metadata (works for YouTube and standard web pages)
+            const title = $('title').text() || $('meta[property="og:title"]').attr('content') || "";
+            const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || "";
+
+            if (title) textContent += `Title: ${title}\n`;
+            if (description) textContent += `Description: ${description}\n\n`;
+
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                // If not YouTube, scrape the main body text
+                $('script, style, nav, footer, header, aside, .ad, .advertisement, iframe, svg').remove();
+                let mainText = $('main, article, .content, .post').text();
+                if (!mainText.trim()) {
+                    mainText = $('body').text();
+                }
+                textContent += "Content:\n" + mainText.replace(/\s+/g, ' ').trim();
+            }
         }
-        return mainText.replace(/\s+/g, ' ').trim().substring(0, 15000);
+
+        // 2. If it's a YouTube video, attempt to fetch the transcript
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            try {
+                const transcript = await YoutubeTranscript.fetchTranscript(url);
+                const transcriptText = transcript.map(t => t.text).join(' ');
+                textContent += "\nTranscript:\n" + transcriptText;
+            } catch (ytError) {
+                console.error("YouTube Transcript Error:", ytError);
+                textContent += "\n[Transcript unavailable - falling back to title and description context]";
+            }
+        }
+
+        return textContent.substring(0, 15000) || `[Failed to extract any content from: ${url}]`;
+
     } catch (error) {
         console.error("URL Scrape Error:", error);
         return `[Failed to scrape URL: ${url}]`;
