@@ -140,20 +140,22 @@ export async function POST(req: Request) {
 
         const model = getGeminiModel();
 
-        // 3. Platform Formatter (Parallel Generation)
-        const generatedPromises = platforms.map(async (p: string) => {
+        // 3. Platform Formatter (Sequential Generation to avoid rate limit bursts)
+        const generated = [];
+        for (const p of platforms) {
             try {
                 const prompt = getPlatformPrompt(p, profile, processedSource, writingStyle);
                 const result = await withRetry(() => model.generateContent(prompt));
                 const responseText = result.response.text();
-                return { platform: p, content: responseText.trim() };
+                generated.push({ platform: p, content: responseText.trim() });
+
+                // Small delay between calls to be safe on free tier
+                await new Promise(resolve => setTimeout(resolve, 500));
             } catch (err: any) {
                 console.error(`Error generating for ${p}:`, err);
-                return { platform: p, content: `[Error: ${err.message}]` };
+                generated.push({ platform: p, content: `[Error: ${err.message}]` });
             }
-        });
-
-        const generated = await Promise.all(generatedPromises);
+        }
 
         // 4. Persist to DB if user is authenticated
         if (user) {

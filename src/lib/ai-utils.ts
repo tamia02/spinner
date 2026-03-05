@@ -34,12 +34,13 @@ export async function withRetry<T>(
                 error?.status === 429;
 
             if (!isRetryable || attempt === maxRetries) {
+                console.error(`[AI-UTILS] Non-retryable or fatal error: ${error.message}`, error);
                 throw error;
             }
 
             // Exponential backoff
             const delay = initialDelay * Math.pow(2, attempt);
-            console.warn(`AI API Error (Attempt ${attempt + 1}/${maxRetries + 1}): ${error.message}. Retrying in ${delay}ms...`);
+            console.warn(`[AI-UTILS] Quota/Rate Limit hit (Attempt ${attempt + 1}/${maxRetries + 1}). Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
