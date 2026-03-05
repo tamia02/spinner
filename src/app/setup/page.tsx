@@ -124,13 +124,12 @@ function OnboardingContent() {
                                             localStorage.setItem("splinter_setup_step", "1");
                                             window.location.href = "/api/auth/linkedin";
                                         }}
-                                        disabled={connectedPlatforms.includes('linkedin')}
-                                        className="w-full border border-gray-200 p-4 font-['Space_Grotesk'] block hover:border-black transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full border border-gray-200 p-4 font-['Space_Grotesk'] block hover:border-black transition-colors group cursor-pointer"
                                     >
                                         <div className="flex justify-between items-center">
                                             <span className="font-semibold text-gray-900">LinkedIn</span>
-                                            <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('linkedin') ? 'text-green-600' : 'text-gray-400 group-hover:text-black'}`}>
-                                                {connectedPlatforms.includes('linkedin') ? 'CONNECTED' : 'CONNECT'}
+                                            <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('linkedin') ? 'text-green-600 group-hover:text-black' : 'text-gray-400 group-hover:text-black'}`}>
+                                                {connectedPlatforms.includes('linkedin') ? 'CONNECTED (RECONNECT)' : 'CONNECT'}
                                             </span>
                                         </div>
                                     </button>
@@ -139,13 +138,12 @@ function OnboardingContent() {
                                             localStorage.setItem("splinter_setup_step", "1");
                                             window.location.href = "/api/auth/twitter";
                                         }}
-                                        disabled={connectedPlatforms.includes('twitter')}
-                                        className="w-full border border-gray-200 p-4 font-['Space_Grotesk'] block hover:border-black transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full border border-gray-200 p-4 font-['Space_Grotesk'] block hover:border-black transition-colors group cursor-pointer"
                                     >
                                         <div className="flex justify-between items-center">
                                             <span className="font-semibold text-gray-900">X / Twitter</span>
-                                            <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('twitter') ? 'text-green-600' : 'text-gray-400 group-hover:text-black'}`}>
-                                                {connectedPlatforms.includes('twitter') ? 'CONNECTED' : 'CONNECT'}
+                                            <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider ${connectedPlatforms.includes('twitter') ? 'text-green-600 group-hover:text-black' : 'text-gray-400 group-hover:text-black'}`}>
+                                                {connectedPlatforms.includes('twitter') ? 'CONNECTED (RECONNECT)' : 'CONNECT'}
                                             </span>
                                         </div>
                                     </button>
