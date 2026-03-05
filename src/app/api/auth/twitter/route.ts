@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
 
     const scope = "tweet.read tweet.write users.read offline.access";
     const state = "splinter_auth_" + Math.random().toString(36).substring(7);
-    const codeChallenge = "splinter_challenge"; // Using plain for the demonstration
+    // Twitter PKCE requires the code_challenge to be between 43 and 128 characters long
+    const codeChallenge = "splinter_challenge_must_be_43_characters_long_minimum";
     const codeChallengeMethod = "plain";
 
     if (!clientId) {
