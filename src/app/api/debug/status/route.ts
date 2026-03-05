@@ -3,20 +3,20 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
+    let dbParsed: any = { error: 'not set' };
+    try {
+        const u = new URL(process.env.DATABASE_URL || '');
+        dbParsed = { username: u.username, host: u.host, port: u.port, db: u.pathname };
+    } catch { dbParsed = { error: 'parse_failed' }; }
+
     const report: any = {
         timestamp: new Date().toISOString(),
+        db_connection_info: dbParsed,
         env: {
             database_url: !!process.env.DATABASE_URL,
             supabase_url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
             supabase_anon_key: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-            node_env: process.env.NODE_ENV,
-            // Show just the username part of the DATABASE_URL to verify it's correct
-            db_username: (() => {
-                try {
-                    const url = new URL(process.env.DATABASE_URL || '');
-                    return url.username;
-                } catch { return 'parse_error'; }
-            })()
+            node_env: process.env.NODE_ENV
         },
         database: {
             status: 'unknown',
