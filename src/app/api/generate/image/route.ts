@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // Using gemini-1.5-pro for better prompt generation if available, or stick to flash for speed
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Using same model as the rest of the app for consistency
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // 1. Generate an image prompt based on the content
         const promptGenResponse = await model.generateContent(`
