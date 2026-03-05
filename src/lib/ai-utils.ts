@@ -4,8 +4,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
  * Common configuration for AI models to ensure consistency across the app.
  */
 export const AI_CONFIG = {
-    // Switching to gemini-1.5-flash which has a much higher free tier quota than 2.0 or 2.5
-    DEFAULT_MODEL: "gemini-1.5-flash",
+    // Using 2.0 Flash which is confirmed to exist in the user's model list and has better quotas than 2.5
+    DEFAULT_MODEL: "gemini-2.0-flash",
     MAX_RETRIES: 3,
     INITIAL_DELAY: 1000, // 1 second
 };
@@ -57,6 +57,6 @@ export function getGeminiModel(modelName: string = AI_CONFIG.DEFAULT_MODEL) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    console.log(`[AI-UTILS] Initializing Gemini model: ${modelName}`);
+    console.log(`[AI-UTILS-V3] Initializing Gemini model: ${modelName} (RANDOM_ID: 998877)`);
     return genAI.getGenerativeModel({ model: modelName });
 }
