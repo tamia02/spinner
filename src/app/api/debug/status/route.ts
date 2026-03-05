@@ -9,7 +9,14 @@ export async function GET() {
             database_url: !!process.env.DATABASE_URL,
             supabase_url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
             supabase_anon_key: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-            node_env: process.env.NODE_ENV
+            node_env: process.env.NODE_ENV,
+            // Show just the username part of the DATABASE_URL to verify it's correct
+            db_username: (() => {
+                try {
+                    const url = new URL(process.env.DATABASE_URL || '');
+                    return url.username;
+                } catch { return 'parse_error'; }
+            })()
         },
         database: {
             status: 'unknown',
