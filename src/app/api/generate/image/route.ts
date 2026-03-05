@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
+import { getGeminiModel, withRetry } from "@/lib/ai-utils";
 
 export async function POST(req: NextRequest) {
     try {
@@ -10,17 +11,9 @@ export async function POST(req: NextRequest) {
 
         const { content, platform } = await req.json();
         if (!content) return NextResponse.json({ error: "No content provided" }, { status: 400 });
+        const model = getGeminiModel();
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: "GEMINI_API_KEY not set" }, { status: 500 });
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-        // STAGE 1: CONTENT -> DESIGN PROMPT (Creative Director Persona)
-        const designPromptGen = await model.generateContent(`
+        const designPromptGen = await withRetry(() => model.generateContent(`
             You are a senior creative director who creates professional infographics for startup founders.
             Convert this social media content into a highly detailed infographic design prompt.
             The infographic must follow modern SaaS design standards (Stripe, Linear, Notion style).
@@ -34,7 +27,7 @@ export async function POST(req: NextRequest) {
             - Structure: Top header (Hook), Middle information blocks (Key Points), Bottom takeaway (Insight).
             
             RESULT: Return ONLY the infographic design prompt text. Do not wrap in codes. No conversational filler.
-        `);
+        `));
 
         const designPrompt = designPromptGen.response.text().trim();
 
@@ -55,7 +48,7 @@ export async function POST(req: NextRequest) {
             RESULT: Return ONLY the raw <svg> code.
         `;
 
-        const result = await model.generateContent(svgGenPrompt);
+        const result = await withRetry(() => model.generateContent(svgGenPrompt));
         let svgCode = result.response.text().trim();
 
         // Clean up any markdown wrapping if the AI included it despite instructions

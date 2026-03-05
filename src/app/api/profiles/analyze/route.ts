@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getGeminiModel, withRetry } from "@/lib/ai-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,11 +15,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Please paste at least one sample post (minimum 20 characters)." }, { status: 400 });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY not set" }, { status: 500 });
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGeminiModel();
 
         const prompt = `You are an expert writing analyst. Analyze the writing style of these sample posts written by a real person.
 
@@ -37,7 +34,7 @@ Return a JSON object with these exact keys:
 
 Return ONLY the JSON object, no markdown code block, no explanation.`;
 
-        const result = await model.generateContent(prompt);
+        const result = await withRetry(() => model.generateContent(prompt));
         const raw = result.response.text().trim()
             .replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
 

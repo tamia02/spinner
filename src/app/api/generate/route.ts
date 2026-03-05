@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { YoutubeTranscript } from "youtube-transcript";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getGeminiModel, withRetry } from "@/lib/ai-utils";
 
 const isValidUrl = (urlString: string) => {
     try { return Boolean(new URL(urlString)); } catch { return false; }
@@ -137,14 +138,13 @@ export async function POST(req: Request) {
             );
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGeminiModel();
 
         // 3. Platform Formatter (Parallel Generation)
         const generatedPromises = platforms.map(async (p: string) => {
             try {
                 const prompt = getPlatformPrompt(p, profile, processedSource, writingStyle);
-                const result = await model.generateContent(prompt);
+                const result = await withRetry(() => model.generateContent(prompt));
                 const responseText = result.response.text();
                 return { platform: p, content: responseText.trim() };
             } catch (err: any) {
