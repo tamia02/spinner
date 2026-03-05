@@ -327,7 +327,7 @@ export default function CreateContentPage() {
                                             <button
                                                 onClick={() => handleGenerateImage(res)}
                                                 disabled={generatingImages[res.platform]}
-                                                className="flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider text-indigo-500 hover:text-indigo-700 transition"
+                                                className="flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wider text-emerald-500 hover:text-emerald-700 transition"
                                             >
                                                 {generatingImages[res.platform] ? (
                                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -336,7 +336,7 @@ export default function CreateContentPage() {
                                                 ) : (
                                                     <Sparkles className="h-3 w-3" />
                                                 )}
-                                                {generatingImages[res.platform] ? "Generating..." : generatedImages[res.platform] ? "Regenerate" : "AI Image"}
+                                                {generatingImages[res.platform] ? "Generating..." : generatedImages[res.platform] ? "Regenerate" : "AI Graphic"}
                                             </button>
                                         </div>
                                     </div>
@@ -345,17 +345,29 @@ export default function CreateContentPage() {
                                     </div>
 
                                     {generatedImages[res.platform] && (
-                                        <div className="mt-6 pt-6 border-t border-indigo-50 animate-in zoom-in-95 duration-500">
-                                            <p className="font-['IBM_Plex_Mono'] text-[10px] text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                <Sparkles className="h-3 w-3" /> // AI GENERATED VISUAL
-                                            </p>
-                                            <div className="relative group">
+                                        <div className="mt-6 pt-6 border-t border-emerald-50 animate-in zoom-in-95 duration-500">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <p className="font-['IBM_Plex_Mono'] text-[10px] text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <Sparkles className="h-3 w-3" /> // DYNAMIC SVG INFOGRAPHIC
+                                                </p>
+                                                <button
+                                                    onClick={() => {
+                                                        const svg = atob(generatedImages[res.platform].split(',')[1]);
+                                                        navigator.clipboard.writeText(svg);
+                                                        alert("SVG code copied to clipboard!");
+                                                    }}
+                                                    className="font-['IBM_Plex_Mono'] text-[9px] uppercase text-gray-400 hover:text-emerald-600 transition"
+                                                >
+                                                    COPY SVG
+                                                </button>
+                                            </div>
+                                            <div className="relative group bg-gray-900 rounded overflow-hidden">
                                                 <img
                                                     src={generatedImages[res.platform]}
-                                                    alt="AI Generated"
-                                                    className="max-h-[350px] w-auto rounded border border-indigo-100 shadow-lg group-hover:shadow-indigo-100 transition-all"
+                                                    alt="AI Generated SVG"
+                                                    className="w-full h-auto shadow-2xl group-hover:scale-[1.01] transition-transform duration-700"
                                                 />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded pointer-events-none" />
+                                                <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                                             </div>
                                         </div>
                                     )}
