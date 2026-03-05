@@ -12,5 +12,14 @@ export async function GET() {
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(content);
+
+    // Shape for the library UI: wrap single `platform` into `platforms[]` and expose `sourceStr`
+    const shaped = content.map(item => ({
+        id: item.id,
+        sourceStr: item.source,
+        platforms: [item.platform],
+        createdAt: item.createdAt,
+    }));
+
+    return NextResponse.json(shaped);
 }
