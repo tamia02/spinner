@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY not set" }, { status: 500 });
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
 
         const prompt = `You are an expert writing analyst. Analyze the writing style of these sample posts written by a real person.
 
