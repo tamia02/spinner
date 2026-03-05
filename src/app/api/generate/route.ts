@@ -138,7 +138,7 @@ export async function POST(req: Request) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // 3. Platform Formatter (Parallel Generation)
         const generatedPromises = platforms.map(async (p: string) => {
