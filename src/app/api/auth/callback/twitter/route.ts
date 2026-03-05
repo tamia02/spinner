@@ -24,13 +24,46 @@ export async function GET(request: Request) {
             if (user) {
                 try {
                     console.log("Twitter Callback - Syncing user to DB:", user.id);
+
+                    // Exchange the auth code for a real Access Token
+                    const clientId = process.env.TWITTER_CLIENT_ID || "";
+                    const clientSecret = process.env.TWITTER_CLIENT_SECRET || "";
+                    const protocol = request.headers.get("x-forwarded-proto") || "http";
+                    const host = request.headers.get("host");
+                    const redirectUri = `${protocol}://${host}/api/auth/callback/twitter`;
+
+                    const tokenResponse = await fetch("https://api.twitter.com/2/oauth2/token", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+                        },
+                        body: new URLSearchParams({
+                            code: code,
+                            grant_type: "authorization_code",
+                            client_id: clientId,
+                            redirect_uri: redirectUri,
+                            // This MUST exactly match the codeChallenge used in api/auth/twitter/route.ts
+                            code_verifier: "splinter_challenge_must_be_43_characters_long_minimum"
+                        })
+                    });
+
+                    if (!tokenResponse.ok) {
+                        const errorData = await tokenResponse.text();
+                        console.error("Twitter Token Exchange Failed:", tokenResponse.status, errorData);
+                        return NextResponse.redirect(new URL("/setup?error=auth_failed&reason=token_exchange", request.url));
+                    }
+
+                    const tokenData = await tokenResponse.json();
+                    const realAccessToken = tokenData.access_token;
+
                     await prisma.user.upsert({
                         where: { id: user.id },
-                        update: { twitterToken: "mock_twitter_token_" + code },
+                        update: { twitterToken: realAccessToken },
                         create: {
                             id: user.id,
                             email: user.email || "",
-                            twitterToken: "mock_twitter_token_" + code
+                            twitterToken: realAccessToken
                         }
                     });
                 } catch (dbError) {

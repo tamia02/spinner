@@ -24,13 +24,44 @@ export async function GET(request: Request) {
             if (user) {
                 try {
                     console.log("LinkedIn Callback - Syncing user to DB:", user.id);
+
+                    // Exchange the auth code for a real Access Token
+                    const clientId = process.env.LINKEDIN_CLIENT_ID || "";
+                    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET || "";
+                    const protocol = request.headers.get("x-forwarded-proto") || "http";
+                    const host = request.headers.get("host");
+                    const redirectUri = `${protocol}://${host}/api/auth/callback/linkedin`;
+
+                    const tokenResponse = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        body: new URLSearchParams({
+                            grant_type: "authorization_code",
+                            code: code,
+                            client_id: clientId,
+                            client_secret: clientSecret,
+                            redirect_uri: redirectUri,
+                        })
+                    });
+
+                    if (!tokenResponse.ok) {
+                        const errorData = await tokenResponse.text();
+                        console.error("LinkedIn Token Exchange Failed:", tokenResponse.status, errorData);
+                        return NextResponse.redirect(new URL("/setup?error=auth_failed&reason=token_exchange", request.url));
+                    }
+
+                    const tokenData = await tokenResponse.json();
+                    const realAccessToken = tokenData.access_token;
+
                     await prisma.user.upsert({
                         where: { id: user.id },
-                        update: { linkedinToken: "mock_linkedin_token_" + code },
+                        update: { linkedinToken: realAccessToken },
                         create: {
                             id: user.id,
                             email: user.email || "",
-                            linkedinToken: "mock_linkedin_token_" + code
+                            linkedinToken: realAccessToken
                         }
                     });
                 } catch (dbError) {
