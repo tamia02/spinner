@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as cheerio from "cheerio";
+import { YoutubeTranscript } from "youtube-transcript";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,6 +11,18 @@ const isValidUrl = (urlString: string) => {
 
 async function scrapeUrl(url: string): Promise<string> {
     try {
+        // Handle YouTube URLs specifically
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            try {
+                const transcript = await YoutubeTranscript.fetchTranscript(url);
+                const text = transcript.map(t => t.text).join(' ');
+                return text.substring(0, 15000); // Limit to reasonable length
+            } catch (ytError) {
+                console.error("YouTube Transcript Error:", ytError);
+                return `[Could not extract YouTube transcript. The video might not have captions enabled.]`;
+            }
+        }
+
         const response = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
@@ -17,10 +30,15 @@ async function scrapeUrl(url: string): Promise<string> {
         const html = await response.text();
         const $ = cheerio.load(html);
         $('script, style, nav, footer, header, aside, .ad, .advertisement, iframe, svg').remove();
-        const mainText = $('main, article, .content, .post, body').text();
+
+        let mainText = $('main, article, .content, .post').text();
+        if (!mainText.trim()) {
+            mainText = $('body').text();
+        }
         return mainText.replace(/\s+/g, ' ').trim().substring(0, 15000);
     } catch (error) {
-        throw new Error(`Failed to scrape URL: ${error}`);
+        console.error("URL Scrape Error:", error);
+        return `[Failed to scrape URL: ${url}]`;
     }
 }
 
