@@ -13,11 +13,13 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
     });
 
-    // Shape for the library UI: wrap single `platform` into `platforms[]` and expose `sourceStr`
+    // Return full rows so the library can show content and differentiate tabs
     const shaped = content.map(item => ({
         id: item.id,
         sourceStr: item.source,
+        platform: item.platform,
         platforms: [item.platform],
+        content: item.content,
         createdAt: item.createdAt,
     }));
 
