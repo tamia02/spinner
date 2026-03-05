@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { prisma } from "@/lib/prisma";
 import * as cheerio from "cheerio";
 import { YoutubeTranscript } from "youtube-transcript";
-import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getGeminiModel, withRetry } from "@/lib/ai-utils";
+import { getOpenAI, withRetry } from "@/lib/ai-utils";
 
 const isValidUrl = (urlString: string) => {
     try { return Boolean(new URL(urlString)); } catch { return false; }
@@ -130,26 +129,27 @@ export async function POST(req: Request) {
         }
 
         // 2. AI Generation
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json(
-                { error: "GEMINI_API_KEY environment variable is not set." },
-                { status: 500 }
-            );
-        }
-
-        const model = getGeminiModel();
+        const openai = getOpenAI();
 
         // 3. Platform Formatter (Sequential Generation to avoid rate limit bursts)
         const generated = [];
         for (const p of platforms) {
             try {
                 const prompt = getPlatformPrompt(p, profile, processedSource, writingStyle);
-                const result = await withRetry(() => model.generateContent(prompt));
-                const responseText = result.response.text();
+
+                const completion = await withRetry(() => openai.chat.completions.create({
+                    model: "gpt-4o",
+                    messages: [
+                        { role: "system", content: "You are a world-class copywriter helping a real person repurpose content for social media." },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: 0.7,
+                }));
+
+                const responseText = completion.choices[0].message.content || "";
                 generated.push({ platform: p, content: responseText.trim() });
 
-                // Small delay between calls to be safe on free tier
+                // Small delay between calls to be safe
                 await new Promise(resolve => setTimeout(resolve, 500));
             } catch (err: any) {
                 console.error(`Error generating for ${p}:`, err);

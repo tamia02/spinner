@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getGeminiModel, withRetry } from "@/lib/ai-utils";
+import { getOpenAI, withRetry } from "@/lib/ai-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Please paste at least one sample post (minimum 20 characters)." }, { status: 400 });
         }
 
-        const model = getGeminiModel();
+        const openai = getOpenAI();
 
         const prompt = `You are an expert writing analyst. Analyze the writing style of these sample posts written by a real person.
 
@@ -34,9 +33,17 @@ Return a JSON object with these exact keys:
 
 Return ONLY the JSON object, no markdown code block, no explanation.`;
 
-        const result = await withRetry(() => model.generateContent(prompt));
-        const raw = result.response.text().trim()
-            .replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
+        const completion = await withRetry(() => openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: "You are an expert writing analyst." },
+                { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.3,
+        }));
+
+        const raw = completion.choices[0].message.content || "";
 
         let parsed: { styleDescription: string; formality: number; humor: number; emoji: number };
         try {

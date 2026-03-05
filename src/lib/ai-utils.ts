@@ -1,11 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
 /**
  * Common configuration for AI models to ensure consistency across the app.
  */
 export const AI_CONFIG = {
-    // Using 2.0 Flash which is confirmed to exist in the user's model list and has better quotas than 2.5
-    DEFAULT_MODEL: "gemini-2.0-flash",
+    // Transitioning to OpenAI GPT-4o by default for stability and higher quotas
+    DEFAULT_PROVIDER: "openai" as "openai" | "gemini",
+    DEFAULT_MODEL: "gpt-4o",
+    GEMINI_FALLBACK_MODEL: "gemini-2.0-flash",
     MAX_RETRIES: 3,
     INITIAL_DELAY: 1000, // 1 second
 };
@@ -27,7 +30,6 @@ export async function withRetry<T>(
             lastError = error;
 
             // 429 is the main error we want to retry on (quota/rate limit)
-            // Also retry on 500, 503, etc. if needed.
             const isRetryable = error?.message?.includes('429') ||
                 error?.message?.includes('Too Many Requests') ||
                 error?.message?.includes('quota') ||
@@ -49,9 +51,20 @@ export async function withRetry<T>(
 }
 
 /**
+ * Helper to get an OpenAI client instance.
+ */
+export function getOpenAI() {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("OPENAI_API_KEY environment variable is not set.");
+    }
+    return new OpenAI({ apiKey });
+}
+
+/**
  * Helper to get the Gemini model instance.
  */
-export function getGeminiModel(modelName: string = AI_CONFIG.DEFAULT_MODEL) {
+export function getGeminiModel(modelName: string = AI_CONFIG.GEMINI_FALLBACK_MODEL) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error("GEMINI_API_KEY environment variable is not set.");

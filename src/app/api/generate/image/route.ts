@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
-import { getGeminiModel, withRetry } from "@/lib/ai-utils";
+import { getOpenAI, withRetry } from "@/lib/ai-utils";
 
 export async function POST(req: NextRequest) {
     try {
@@ -11,25 +10,32 @@ export async function POST(req: NextRequest) {
 
         const { content, platform } = await req.json();
         if (!content) return NextResponse.json({ error: "No content provided" }, { status: 400 });
-        const model = getGeminiModel();
+        const openai = getOpenAI();
 
-        const designPromptGen = await withRetry(() => model.generateContent(`
-            You are a senior creative director who creates professional infographics for startup founders.
-            Convert this social media content into a highly detailed infographic design prompt.
-            The infographic must follow modern SaaS design standards (Stripe, Linear, Notion style).
-            
-            CONTENT: "${content.substring(0, 500)}"
-            PLATFORM: ${platform}
+        const designPromptGen = await withRetry(() => openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: "You are a senior creative director who creates professional infographics." },
+                {
+                    role: "user", content: `
+                    Convert this social media content into a highly detailed infographic design prompt.
+                    The infographic must follow modern SaaS design standards (Stripe, Linear, Notion style).
+                    
+                    CONTENT: "${content.substring(0, 500)}"
+                    PLATFORM: ${platform}
 
-            DESIGN REQUIREMENTS:
-            - Infographic must look like it was designed by a professional designer, not AI-generated art.
-            - Define: Layout grid, Section hierarchy, Visual flow, Icon style, Color palette (emerald/dark theme), Typography, Spacing.
-            - Structure: Top header (Hook), Middle information blocks (Key Points), Bottom takeaway (Insight).
-            
-            RESULT: Return ONLY the infographic design prompt text. Do not wrap in codes. No conversational filler.
-        `));
+                    DESIGN REQUIREMENTS:
+                    - Infographic must look like it was designed by a professional designer, not AI-generated art.
+                    - Define: Layout grid, Section hierarchy, Visual flow, Icon style, Color palette (emerald/dark theme), Typography, Spacing.
+                    - Structure: Top header (Hook), Middle information blocks (Key Points), Bottom takeaway (Insight).
+                    
+                    RESULT: Return ONLY the infographic design prompt text. Do not wrap in codes. No conversational filler.
+                ` }
+            ],
+            temperature: 0.7,
+        }));
 
-        const designPrompt = designPromptGen.response.text().trim();
+        const designPrompt = designPromptGen.choices[0].message.content || "";
 
         // STAGE 2: DESIGN PROMPT -> SVG EXECUTION (Senior Graphic Designer Persona)
         const svgGenPrompt = `
@@ -48,8 +54,16 @@ export async function POST(req: NextRequest) {
             RESULT: Return ONLY the raw <svg> code.
         `;
 
-        const result = await withRetry(() => model.generateContent(svgGenPrompt));
-        let svgCode = result.response.text().trim();
+        const result = await withRetry(() => openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: "You are a senior graphic designer specializing in professional SVG infographics." },
+                { role: "user", content: svgGenPrompt }
+            ],
+            temperature: 0.2,
+        }));
+
+        let svgCode = result.choices[0].message.content || "";
 
         // Clean up any markdown wrapping if the AI included it despite instructions
         svgCode = svgCode.replace(/^```svg\s*/i, "").replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
