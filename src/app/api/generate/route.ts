@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import * as cheerio from "cheerio";
 import { YoutubeTranscript } from "youtube-transcript";
 import { createClient } from "@/lib/supabase/server";
-import { getOpenAI, withRetry } from "@/lib/ai-utils";
+import { getGeminiModel, withRetry, AI_CONFIG } from "@/lib/ai-utils";
 
 const isValidUrl = (urlString: string) => {
     try { return Boolean(new URL(urlString)); } catch { return false; }
@@ -129,27 +129,18 @@ export async function POST(req: Request) {
         }
 
         // 2. AI Generation
-        const openai = getOpenAI();
+        const model = getGeminiModel();
 
         // 3. Platform Formatter (Sequential Generation to avoid rate limit bursts)
         const generated = [];
         for (const p of platforms) {
             try {
                 const prompt = getPlatformPrompt(p, profile, processedSource, writingStyle);
-
-                const completion = await withRetry(() => openai.chat.completions.create({
-                    model: "gpt-4o",
-                    messages: [
-                        { role: "system", content: "You are a world-class copywriter helping a real person repurpose content for social media." },
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 0.7,
-                }));
-
-                const responseText = completion.choices[0].message.content || "";
+                const result = await withRetry(() => model.generateContent(prompt));
+                const responseText = result.response.text();
                 generated.push({ platform: p, content: responseText.trim() });
 
-                // Small delay between calls to be safe
+                // Small delay between calls to be safe on free tier
                 await new Promise(resolve => setTimeout(resolve, 500));
             } catch (err: any) {
                 console.error(`Error generating for ${p}:`, err);
