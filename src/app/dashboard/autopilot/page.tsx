@@ -20,6 +20,7 @@ interface BriefingPost {
     content: string;
     status: string;
     sourceUrl?: string;
+    graphicUrl?: string;
 }
 
 const STYLE_OPTIONS = [
@@ -48,6 +49,9 @@ export default function AutopilotPage() {
     const [strategyTopic, setStrategyTopic] = useState("");
     const [isGeneratingSequence, setIsGeneratingSequence] = useState(false);
     const [sequenceStatus, setSequenceStatus] = useState<string | null>(null);
+
+    // Graphic State
+    const [isGeneratingGraphic, setIsGeneratingGraphic] = useState<{ [key: string]: boolean }>({});
 
     // Common Loading
     const [isLoading, setIsLoading] = useState(true);
@@ -167,6 +171,27 @@ export default function AutopilotPage() {
         }
     };
 
+    const handleGenerateGraphic = async (id: string, content: string) => {
+        setIsGeneratingGraphic(prev => ({ ...prev, [id]: true }));
+        try {
+            const res = await fetch("/api/generate/graphic", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setBriefings(prev => prev.map(p => p.id === id ? { ...p, graphicUrl: data.imageUrl } : p));
+            } else {
+                alert(data.error);
+            }
+        } catch (err) {
+            alert("Failed to generate graphic.");
+        } finally {
+            setIsGeneratingGraphic(prev => ({ ...prev, [id]: false }));
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="h-full flex items-center justify-center">
@@ -271,7 +296,21 @@ export default function AutopilotPage() {
                                     <div className="flex-1 font-['Space_Grotesk'] text-[15px] leading-[1.6] text-gray-800 whitespace-pre-wrap mb-8">
                                         {post.content}
                                     </div>
+                                    {post.graphicUrl && (
+                                        <div className="mb-6 border border-gray-100 p-1 bg-gray-50">
+                                            <img src={post.graphicUrl} alt="AI Graphic" className="w-full h-auto aspect-[4/5] object-cover" />
+                                        </div>
+                                    )}
                                     <div className="flex flex-col gap-3 pt-6 border-t border-gray-50">
+                                        {!post.graphicUrl && (
+                                            <button
+                                                onClick={() => handleGenerateGraphic(post.id, post.content)}
+                                                disabled={isGeneratingGraphic[post.id]}
+                                                className="w-full border border-purple-200 text-purple-600 py-2.5 font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-widest hover:bg-purple-50 transition flex items-center justify-center gap-2">
+                                                {isGeneratingGraphic[post.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                                Generate AI Graphic
+                                            </button>
+                                        )}
                                         <div className="flex gap-2">
                                             <button className="flex-1 bg-black text-white py-2.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-widest hover:bg-gray-800 transition flex items-center justify-center gap-2">
                                                 <Send className="h-3.5 w-3.5" /> Post
