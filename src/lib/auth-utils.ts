@@ -59,3 +59,60 @@ export async function getValidTwitterToken(userId: string) {
 
     return user.twitterToken;
 }
+
+export async function refreshLinkedinToken(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.linkedinRefreshToken) throw new Error("No LinkedIn refresh token found");
+
+    const clientId = process.env.LINKEDIN_CLIENT_ID || "";
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET || "";
+
+    const response = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: user.linkedinRefreshToken,
+            client_id: clientId,
+            client_secret: clientSecret
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        console.error("Failed to refresh LinkedIn token:", error);
+        throw new Error(`LinkedIn token refresh failed: ${error}`);
+    }
+
+    const data = await response.json();
+    const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null;
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: {
+            linkedinToken: data.access_token,
+            linkedinRefreshToken: data.refresh_token,
+            linkedinExpiresAt: expiresAt
+        }
+    });
+
+    return data.access_token;
+}
+
+export async function getValidLinkedinToken(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.linkedinToken) return null;
+
+    const isExpired = user.linkedinExpiresAt && (user.linkedinExpiresAt.getTime() - Date.now() < 5 * 60 * 1000);
+
+    if (isExpired) {
+        try {
+            return await refreshLinkedinToken(userId);
+        } catch (error) {
+            console.error("Automatic LinkedIn refresh failed:", error);
+            return user.linkedinToken;
+        }
+    }
+
+    return user.linkedinToken;
+}
