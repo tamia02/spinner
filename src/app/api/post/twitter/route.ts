@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getValidTwitterToken } from "@/lib/auth-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -11,8 +12,8 @@ export async function POST(request: NextRequest) {
         const { content } = await request.json();
         if (!content) return NextResponse.json({ error: "No content provided" }, { status: 400 });
 
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-        if (!dbUser?.twitterToken) {
+        const accessToken = await getValidTwitterToken(user.id);
+        if (!accessToken) {
             return NextResponse.json({ error: "X/Twitter account not connected. Please connect in settings." }, { status: 403 });
         }
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
         let tweetRes = await fetch("https://api.twitter.com/2/tweets", {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${dbUser.twitterToken}`,
+                "Authorization": `Bearer ${accessToken}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({ text: content.substring(0, 280) }) // Twitter char limit
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
             tweetRes = await fetch("https://api.twitter.com/2/tweets", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${dbUser.twitterToken}`,
+                    "Authorization": `Bearer ${accessToken}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ text: content.substring(0, 280) })

@@ -9,14 +9,18 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  name          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  name                String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  linkedinToken String?
-  twitterToken  String?
+  linkedinToken       String?
+  linkedinRefreshToken String?
+  linkedinExpiresAt   DateTime?
+  twitterToken        String?
+  twitterRefreshToken String? 
+  twitterExpiresAt    DateTime?
 }
 
 model VoiceProfile {

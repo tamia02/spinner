@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getValidLinkedinToken } from "@/lib/auth-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -11,15 +12,15 @@ export async function POST(request: NextRequest) {
         const { content } = await request.json();
         if (!content) return NextResponse.json({ error: "No content provided" }, { status: 400 });
 
-        // Get stored LinkedIn access token
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-        if (!dbUser?.linkedinToken) {
+        // Get valid LinkedIn access token (refresh if needed)
+        const accessToken = await getValidLinkedinToken(user.id);
+        if (!accessToken) {
             return NextResponse.json({ error: "LinkedIn account not connected. Please connect in settings." }, { status: 403 });
         }
 
         // Post to LinkedIn Share API v2
         const profileRes = await fetch("https://api.linkedin.com/v2/userinfo", {
-            headers: { Authorization: `Bearer ${dbUser.linkedinToken}` }
+            headers: { Authorization: `Bearer ${accessToken}` }
         });
         const profile = await profileRes.json();
         const personUrn = `urn:li:person:${profile.sub}`;
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
         const postRes = await fetch("https://api.linkedin.com/v2/ugcPosts", {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${dbUser.linkedinToken}`,
+                "Authorization": `Bearer ${accessToken}`,
                 "Content-Type": "application/json",
                 "X-Restli-Protocol-Version": "2.0.0"
             },

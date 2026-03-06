@@ -56,14 +56,22 @@ export async function GET(request: Request) {
 
                     const tokenData = await tokenResponse.json();
                     const realAccessToken = tokenData.access_token;
+                    const refreshToken = tokenData.refresh_token;
+                    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
                     await prisma.user.upsert({
                         where: { id: user.id },
-                        update: { twitterToken: realAccessToken },
+                        update: {
+                            twitterToken: realAccessToken,
+                            twitterRefreshToken: refreshToken,
+                            twitterExpiresAt: expiresAt
+                        },
                         create: {
                             id: user.id,
                             email: user.email || "",
-                            twitterToken: realAccessToken
+                            twitterToken: realAccessToken,
+                            twitterRefreshToken: refreshToken,
+                            twitterExpiresAt: expiresAt
                         }
                     });
                 } catch (dbError) {
