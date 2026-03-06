@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sparkles, Loader2, Check, Calendar, Plus, X, Link as LinkIcon, Info } from "lucide-react";
+import { Sparkles, Loader2, Check, Calendar, Plus, X, Link as LinkIcon, Info, Users, Zap, Search, Send, Clock, RotateCcw } from "lucide-react";
 
 interface VoiceProfile {
     id: string;
@@ -9,210 +9,324 @@ interface VoiceProfile {
     isDefault: boolean;
 }
 
+interface MonitoredCreator {
+    id: string;
+    name: string;
+    url: string;
+}
+
+interface BriefingPost {
+    id: string;
+    content: string;
+    status: string;
+    sourceUrl?: string;
+}
+
 export default function AutopilotPage() {
-    const [topic, setTopic] = useState("");
-    const [competitorUrls, setCompetitorUrls] = useState<string[]>([""]);
-    const [subreddits, setSubreddits] = useState<string[]>(["artificial", "technology"]);
+    const [view, setView] = useState<"brief" | "monitored">("brief");
     const [profileId, setProfileId] = useState("");
     const [availableProfiles, setAvailableProfiles] = useState<VoiceProfile[]>([]);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [status, setStatus] = useState<string | null>(null);
-    const [generatedPosts, setGeneratedPosts] = useState<any[]>([]);
+
+    // Monitored Creators State
+    const [creators, setCreators] = useState<MonitoredCreator[]>([]);
+    const [newCreatorUrl, setNewCreatorUrl] = useState("");
+    const [newCreatorName, setNewCreatorName] = useState("");
+    const [isAddingCreator, setIsAddingCreator] = useState(false);
+
+    // Morning Brief State
+    const [briefings, setBriefings] = useState<BriefingPost[]>([]);
+    const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
+    const [briefStatus, setBriefStatus] = useState<string | null>(null);
+
+    // Common Loading
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch("/api/profiles")
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setAvailableProfiles(data);
-                    const def = data.find(p => p.isDefault);
+        const loadInitialData = async () => {
+            try {
+                const [profilesRes, creatorsRes, briefRes] = await Promise.all([
+                    fetch("/api/profiles"),
+                    fetch("/api/creators"),
+                    fetch("/api/generate/daily-brief")
+                ]);
+
+                const profilesData = await profilesRes.json();
+                const creatorsData = await creatorsRes.json();
+                const briefData = await briefRes.json();
+
+                if (Array.isArray(profilesData)) {
+                    setAvailableProfiles(profilesData);
+                    const def = profilesData.find(p => p.isDefault) || profilesData[0];
                     if (def) setProfileId(def.id);
-                    else if (data.length > 0) setProfileId(data[0].id);
                 }
-            })
-            .catch(err => console.error("Failed to load profiles:", err));
+
+                if (creatorsData.success) setCreators(creatorsData.data);
+                if (briefData.success) setBriefings(briefData.data);
+
+            } catch (err) {
+                console.error("Failed to load initial data:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadInitialData();
     }, []);
 
-    const addCompetitor = () => setCompetitorUrls([...competitorUrls, ""]);
-    const removeCompetitor = (index: number) => setCompetitorUrls(competitorUrls.filter((_, i) => i !== index));
-    const updateCompetitor = (index: number, val: string) => {
-        const next = [...competitorUrls];
-        next[index] = val;
-        setCompetitorUrls(next);
-    };
-
-    const addSubreddit = () => setSubreddits([...subreddits, ""]);
-    const removeSubreddit = (index: number) => setSubreddits(subreddits.filter((_, i) => i !== index));
-    const updateSubreddit = (index: number, val: string) => {
-        const next = [...subreddits];
-        next[index] = val;
-        setSubreddits(next);
-    };
-
-    const handleGenerate = async () => {
-        if (!topic) return;
-        setIsGenerating(true);
-        setStatus("Gathering Intelligence & Analyzing Styles...");
+    const handleAddCreator = async () => {
+        if (!newCreatorUrl) return;
+        setIsAddingCreator(true);
         try {
-            const response = await fetch("/api/generate/bulk", {
+            const res = await fetch("/api/creators", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    topic,
-                    competitorUrls: competitorUrls.filter(u => u.trim() !== ""),
-                    subreddits: subreddits.filter(s => s.trim() !== ""),
-                    profileId,
-                    count: 30
-                }),
+                body: JSON.stringify({ url: newCreatorUrl, name: newCreatorName || "Top Creator" })
             });
-            const data = await response.json();
+            const data = await res.json();
             if (data.success) {
-                setGeneratedPosts(data.data);
-                setStatus("30-Day Plan Generated & Scheduled!");
+                setCreators([data.data, ...creators]);
+                setNewCreatorUrl("");
+                setNewCreatorName("");
             } else {
                 alert(data.error);
-                setStatus(null);
             }
         } catch (err) {
-            console.error(err);
-            alert("Failed to start autopilot.");
-            setStatus(null);
+            alert("Failed to add creator.");
         } finally {
-            setIsGenerating(false);
+            setIsAddingCreator(false);
         }
     };
 
+    const handleRemoveCreator = async (id: string) => {
+        try {
+            const res = await fetch(`/api/creators?id=${id}`, { method: "DELETE" });
+            if (res.ok) {
+                setCreators(creators.filter(c => c.id !== id));
+            }
+        } catch (err) {
+            alert("Failed to remove creator.");
+        }
+    };
+
+    const handleGenerateBrief = async () => {
+        if (creators.length === 0) {
+            setView("monitored");
+            alert("Please add at least one monitored creator first.");
+            return;
+        }
+        setIsGeneratingBrief(true);
+        setBriefStatus("Scraping Latest Creator Activity...");
+        try {
+            const res = await fetch("/api/generate/daily-brief", { method: "POST" });
+            const data = await res.json();
+            if (data.success) {
+                setBriefings(data.data);
+                setBriefStatus(null);
+            } else {
+                alert(data.error);
+                setBriefStatus(null);
+            }
+        } catch (err) {
+            alert("Failed to generate brief.");
+            setBriefStatus(null);
+        } finally {
+            setIsGeneratingBrief(false);
+        }
+    };
+
+    const handleApprove = async (post: BriefingPost, immediate: boolean) => {
+        // Implementation for scheduling/posting approved brief
+        alert(immediate ? "Publishing to LinkedIn..." : "Added to scheduling queue.");
+    };
+
+    if (isLoading) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-black/10" />
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-12 max-w-4xl">
-            <div>
-                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-purple-500 tracking-[0.2em] mb-4">
-                    // AUTOPILOT ENGINE
-                </p>
-                <h1 className="text-4xl font-bold tracking-tight">Content Autopilot</h1>
-                <p className="text-gray-500 mt-2 font-['Space_Grotesk']">
-                    Generate a full month of authority-building LinkedIn posts in seconds.
-                </p>
+        <div className="space-y-12 max-w-5xl">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-gray-100">
+                <div>
+                    <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-purple-500 tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <Zap className="h-3 w-3 fill-purple-500" /> // CREATOR MIRRORING ENGINE
+                    </p>
+                    <h1 className="text-4xl font-bold tracking-tight">The Morning Brief</h1>
+                    <p className="text-gray-500 mt-2 font-['Space_Grotesk'] max-w-xl">
+                        Your personalized daily content ideas, curated from the creators you watch.
+                        Approved by you, published by Splinter.
+                    </p>
+                </div>
+
+                <div className="flex bg-gray-100 p-1 rounded-sm self-start md:self-auto">
+                    <button
+                        onClick={() => setView("brief")}
+                        className={`px-4 py-1.5 text-[11px] font-['IBM_Plex_Mono'] uppercase tracking-wider transition ${view === "brief" ? 'bg-white shadow-sm text-black font-bold' : 'text-gray-400 hover:text-black'}`}>
+                        Mornings
+                    </button>
+                    <button
+                        onClick={() => setView("monitored")}
+                        className={`px-4 py-1.5 text-[11px] font-['IBM_Plex_Mono'] uppercase tracking-wider transition ${view === "monitored" ? 'bg-white shadow-sm text-black font-bold' : 'text-gray-400 hover:text-black'}`}>
+                        Monitors
+                    </button>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Configuration */}
-                <div className="space-y-8">
-                    <div className="bg-white p-6 border border-gray-200 shadow-sm space-y-6">
-                        <div>
-                            <label className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 tracking-wider mb-2 block uppercase">PRIMARY TOPIC / NICHE</label>
-                            <input
-                                type="text"
-                                value={topic}
-                                onChange={e => setTopic(e.target.value)}
-                                placeholder="e.g. AI Agents for B2B SaaS"
-                                className="w-full border border-gray-200 p-3 font-['Space_Grotesk'] text-sm focus:outline-none focus:border-black"
-                            />
+            {view === "brief" ? (
+                <div className="space-y-10">
+                    {/* Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-400 font-['Space_Grotesk']">
+                            <Info className="h-4 w-4" />
+                            {creators.length === 0 ? "No creators monitored. Go to 'Monitors' to add some." : `Monitoring ${creators.length} top creator profiles.`}
                         </div>
-
-                        <div>
-                            <label className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 tracking-wider mb-2 block uppercase text-emerald-600">COMPETITOR STYLE ANALYSIS (URLs)</label>
-                            <div className="space-y-2">
-                                {competitorUrls.map((url, i) => (
-                                    <div key={i} className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={url}
-                                            onChange={e => updateCompetitor(i, e.target.value)}
-                                            placeholder="Link to a post you like..."
-                                            className="flex-1 border border-gray-200 p-2 text-xs font-['Space_Grotesk'] focus:outline-none focus:border-emerald-500"
-                                        />
-                                        <button onClick={() => removeCompetitor(i)} className="text-gray-400 hover:text-red-500"><X className="h-4 w-4" /></button>
-                                    </div>
-                                ))}
-                                <button onClick={addCompetitor} className="text-[10px] font-['IBM_Plex_Mono'] uppercase text-emerald-600 flex items-center gap-1 hover:underline">
-                                    <Plus className="h-3 w-3" /> Add Post URL
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 tracking-wider mb-2 block uppercase text-orange-600">REDDIT INTELLIGENCE (SUBREDDITS)</label>
-                            <div className="space-y-2">
-                                {subreddits.map((sub, i) => (
-                                    <div key={i} className="flex gap-2">
-                                        <div className="flex-1 flex items-center border border-gray-200 bg-gray-50 px-2 text-xs font-['Space_Grotesk'] focus-within:border-orange-500">
-                                            <span className="text-gray-400 mr-1">r/</span>
-                                            <input
-                                                type="text"
-                                                value={sub}
-                                                onChange={e => updateSubreddit(i, e.target.value)}
-                                                className="flex-1 bg-transparent p-2 outline-none"
-                                            />
-                                        </div>
-                                        <button onClick={() => removeSubreddit(i)} className="text-gray-400 hover:text-red-500"><X className="h-4 w-4" /></button>
-                                    </div>
-                                ))}
-                                <button onClick={addSubreddit} className="text-[10px] font-['IBM_Plex_Mono'] uppercase text-orange-600 flex items-center gap-1 hover:underline">
-                                    <Plus className="h-3 w-3" /> Add Subreddit
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="font-['IBM_Plex_Mono'] text-[10px] text-gray-400 tracking-wider mb-2 block uppercase">VOICE PROFILE</label>
-                            <select value={profileId} onChange={e => setProfileId(e.target.value)}
-                                className="w-full border border-gray-200 p-3 font-['Space_Grotesk'] text-sm focus:outline-none focus:border-black appearance-none bg-white rounded-none cursor-pointer">
-                                {availableProfiles.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
                         <button
-                            onClick={handleGenerate}
-                            disabled={!topic || isGenerating}
-                            className="w-full bg-black text-white font-['IBM_Plex_Mono'] text-[12px] uppercase tracking-[0.2em] py-4 hover:bg-black/80 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-3"
-                        >
-                            {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                            {isGenerating ? "Processing Plan..." : "Generate 30-Day Plan"}
+                            onClick={handleGenerateBrief}
+                            disabled={isGeneratingBrief}
+                            className="bg-black text-white font-['IBM_Plex_Mono'] text-[12px] uppercase tracking-[0.2em] px-8 py-3.5 hover:bg-black/80 transition-colors disabled:bg-gray-400 flex items-center gap-3">
+                            {isGeneratingBrief ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            {isGeneratingBrief ? "MIRRORING..." : "Generate Today's Brief"}
                         </button>
                     </div>
 
-                    {status && (
-                        <div className="bg-purple-50 border border-purple-100 p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                            <Info className="h-5 w-5 text-purple-500 mt-0.5" />
-                            <div>
-                                <p className="text-sm font-['Space_Grotesk'] text-purple-900 font-medium">{status}</p>
-                                <p className="text-[11px] text-purple-700 font-['IBM_Plex_Mono'] uppercase mt-1">Automatic scheduling engaged.</p>
+                    {briefStatus && (
+                        <div className="bg-purple-50 border border-purple-100 p-4 flex items-center justify-between animate-pulse">
+                            <div className="flex items-center gap-3">
+                                <RotateCcw className="h-4 w-4 text-purple-500 animate-spin" />
+                                <span className="text-xs font-['IBM_Plex_Mono'] uppercase tracking-wider text-purple-700">{briefStatus}</span>
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* Results Preview */}
-                <div className="space-y-4">
-                    <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-gray-500 tracking-[0.2em]">
-                        // 30-DAY PREVIEW
-                    </p>
-                    <div className="bg-white border border-gray-200 shadow-sm min-h-[500px] max-h-[700px] overflow-y-auto p-6 space-y-6">
-                        {generatedPosts.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                                <Calendar className="h-12 w-12 mb-4" />
-                                <p className="font-['Space_Grotesk'] text-sm">No plan generated yet.</p>
+                    {/* Suggestions Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {briefings.length === 0 ? (
+                            <div className="col-span-full py-24 border-2 border-dashed border-gray-100 rounded-lg flex flex-col items-center justify-center opacity-30 text-center">
+                                <Zap className="h-12 w-12 mb-4" />
+                                <p className="font-['Space_Grotesk'] text-sm">Your morning brief is empty.<br />Click generate to build your daily plan.</p>
                             </div>
                         ) : (
-                            generatedPosts.map((post, i) => (
-                                <div key={i} className="border-b border-gray-100 last:border-0 pb-6">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="font-['IBM_Plex_Mono'] text-[10px] font-bold bg-gray-100 px-2 py-0.5 rounded">DAY {post.day}</span>
-                                        <span className="text-[10px] text-green-600 font-['IBM_Plex_Mono'] flex items-center gap-1">
-                                            <Check className="h-3 w-3" /> SCHEDULED
-                                        </span>
+                            briefings.map((post, i) => (
+                                <div key={post.id} className="bg-white border border-gray-200 shadow-sm p-8 flex flex-col h-full hover:border-purple-200 transition-colors group">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-['IBM_Plex_Mono'] text-[10px] font-bold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-sm uppercase tracking-tighter">SUGGESTION {i + 1}</span>
+                                            {post.status === "APPROVED" && <span className="text-[10px] text-green-600 font-['IBM_Plex_Mono'] flex items-center gap-1 uppercase tracking-tighter"><Check className="h-3 w-3" /> Approved</span>}
+                                        </div>
+                                        {post.sourceUrl && (
+                                            <a href={post.sourceUrl} target="_blank" className="text-[9px] font-['IBM_Plex_Mono'] uppercase text-gray-300 hover:text-purple-500 flex items-center gap-1 transition-colors">
+                                                ORIGINAL SOURCE <LinkIcon className="h-2.5 w-2.5" />
+                                            </a>
+                                        )}
                                     </div>
-                                    <p className="text-sm font-['Space_Grotesk'] text-gray-700 whitespace-pre-wrap line-clamp-4">
+                                    <div className="flex-1 font-['Space_Grotesk'] text-[15px] leading-[1.6] text-gray-800 whitespace-pre-wrap mb-8">
                                         {post.content}
-                                    </p>
+                                    </div>
+                                    <div className="flex flex-col gap-3 pt-6 border-t border-gray-50">
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleApprove(post, true)}
+                                                className="flex-1 bg-black text-white py-2.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-widest hover:bg-gray-800 transition flex items-center justify-center gap-2">
+                                                <Send className="h-3.5 w-3.5" /> Post Now
+                                            </button>
+                                            <button
+                                                onClick={() => handleApprove(post, false)}
+                                                className="flex-1 border border-black py-2.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-widest hover:bg-black hover:text-white transition flex items-center justify-center gap-2">
+                                                <Clock className="h-3.5 w-3.5" /> Queue
+                                            </button>
+                                        </div>
+                                        <button className="w-full text-[10px] font-['IBM_Plex_Mono'] text-purple-500 uppercase tracking-widest py-1.5 hover:bg-purple-50 transition border border-dashed border-purple-200">
+                                            + ADD AI GRAPHIC
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                    {/* Monitor List */}
+                    <div className="md:col-span-2 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-['IBM_Plex_Mono'] text-sm font-bold uppercase tracking-widest group">
+                                Monitoring {creators.length}/5 Active Profiles
+                            </h3>
+                            <button className="text-[10px] font-['IBM_Plex_Mono'] uppercase text-gray-400 hover:text-black flex items-center gap-1 transition-colors">
+                                <Search className="h-3 w-3" /> Find Creators
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {creators.length === 0 ? (
+                                <div className="py-12 bg-gray-50 border border-dashed border-gray-200 text-center rounded-lg opacity-40">
+                                    <Users className="h-8 w-8 mx-auto mb-2" />
+                                    <p className="text-xs font-['Space_Grotesk']">Your monitoring engine is cold.</p>
+                                </div>
+                            ) : creators.map(c => (
+                                <div key={c.id} className="bg-white border border-gray-100 p-4 flex items-center justify-between group hover:border-black transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 bg-gray-100 rounded-sm flex items-center justify-center text-gray-400 group-hover:bg-black group-hover:text-white transition-colors">
+                                            <Users className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold font-['Space_Grotesk'] text-sm">{c.name}</p>
+                                            <p className="text-[10px] text-gray-400 font-['IBM_Plex_Mono'] truncate max-w-[200px]">{c.url}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleRemoveCreator(c.id)}
+                                        className="text-gray-300 hover:text-red-500 p-2 transition-colors">
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Add Creator Form */}
+                    <div className="bg-white border border-gray-200 p-6 h-fit shadow-xl rounded-none relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-12 h-12 bg-gray-50 -mr-6 -mt-6 rotate-45" />
+                        <h4 className="font-['IBM_Plex_Mono'] text-[11px] font-bold uppercase tracking-widest mb-6 border-b border-gray-100 pb-2">Add New Mentor</h4>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-['IBM_Plex_Mono'] text-gray-400 uppercase tracking-widest mb-2">Creator Name</label>
+                                <input
+                                    type="text"
+                                    value={newCreatorName}
+                                    onChange={e => setNewCreatorName(e.target.value)}
+                                    placeholder="e.g. Justin Welsh"
+                                    className="w-full border-b border-gray-200 py-2 text-sm focus:border-black focus:outline-none placeholder:text-gray-300 font-['Space_Grotesk']"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-['IBM_Plex_Mono'] text-gray-400 uppercase tracking-widest mb-2">Profile URL</label>
+                                <input
+                                    type="url"
+                                    value={newCreatorUrl}
+                                    onChange={e => setNewCreatorUrl(e.target.value)}
+                                    placeholder="LinkedIn or Twitter URL"
+                                    className="w-full border-b border-gray-200 py-2 text-sm focus:border-black focus:outline-none placeholder:text-gray-300 font-['Space_Grotesk']"
+                                />
+                            </div>
+                            <button
+                                onClick={handleAddCreator}
+                                disabled={isAddingCreator || creators.length >= 5}
+                                className="w-full bg-black text-white py-3 text-[10px] font-['IBM_Plex_Mono'] uppercase tracking-[0.2em] hover:bg-gray-800 disabled:bg-gray-200 transition-colors">
+                                {isAddingCreator ? "Adding..." : "Add to Monitoring"}
+                            </button>
+                            <p className="text-[9px] text-gray-400 text-center font-['IBM_Plex_Mono'] uppercase leading-relaxed">
+                                Splinter will scrape their latest activity daily using Jina Intelligence.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

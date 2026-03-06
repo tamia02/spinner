@@ -57,3 +57,23 @@ model ScheduledPost {
   status      String   @default("PENDING") // PENDING | POSTED | FAILED
   createdAt   DateTime @default(now())
 }
+
+model MonitoredCreator {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String?
+  url       String   // Profile URL
+  lastFetch DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DailyBriefing {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @default(now())
+  content   String   // Repurposed post
+  sourceUrl String?  // Reference to original post
+  status    String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt DateTime @default(now())
+}
