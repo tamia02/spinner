@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getGeminiModel, withRetry } from "@/lib/ai-utils";
 import { fetchLatestCreatorPosts } from "@/lib/creator-utils";
 import { getTopSubredditPosts } from "@/lib/reddit-utils";
+import { getStyleProfile } from "@/lib/style-profiles";
 
 export async function POST(req: Request) {
     try {
@@ -45,12 +46,23 @@ export async function POST(req: Request) {
             redditContext += `\nTrending in r/${sub}:\n` + topPosts.map(p => `- ${p.title}`).join('\n');
         }
 
+        const { styleProfileId } = await req.json();
+        const style = getStyleProfile(styleProfileId);
+
         // 4. Generate 2 Daily Suggestions with Gemini
         const model = getGeminiModel();
         const prompt = `
-You are a world-class LinkedIn ghostwriter. Your client is a top professional who wants to build a personal brand by sharing daily insights.
+You are a world-class LinkedIn ghostwriter specializing in the "${style.name}" writing style.
+Your client is a top professional who wants to build a personal brand by sharing daily insights.
 
-YOUR MISSION:
+CLIENT VOICE PROFILE (${style.name}):
+- Hook Style: ${style.patterns.hookStyle}
+- Spacing: ${style.patterns.spacing}
+- CTA: ${style.patterns.ctaStyle}
+- Tone: ${style.patterns.tone}
+- Forbidden Words: ${style.patterns.forbiddenWords.join(", ")}
+
+MISSION:
 Generate exactly 2 high-impact LinkedIn posts for today.
 
 SOURCES OF INTELLIGENCE:
@@ -64,17 +76,17 @@ POST 1: "MIRROR & REPURPOSE"
 - Select the most compelling insight from the [CREATOR ACTIVITY] above.
 - REPURPOSE IT: Do NOT copy the creator. Instead, "mirror" the core lesson or strategy.
 - Voice: Human, authority-building, and clear.
-- Structure: Strong hook, 3-5 punchy paragraphs or bullet points, thought-provoking question.
+- Structure: ${style.patterns.spacing}
 - Rule: If the source is a personal story from that creator, abstract the LESSON and apply it to a general professional context.
 
 POST 2: "MARKET OPINION"
 - Select a trending topic from the [MARKET TRENDS] above.
 - Write a short, punchy take (max 150 words) that positions the client as a forward-thinker.
-- Hook: Direct and slightly contrarian or highly relevant to today.
+- Hook: ${style.patterns.hookStyle}
 
 STRICT RULES:
 - NO hashtags.
-- NO AI-isms ("In today's fast-paced world", "Unlock your potential", "Game-changer", "Delve").
+- NO AI-isms.
 - Format as JSON array of exactly 2 objects: [{"day": 1, "content": "..."}, {"day": 2, "content": "..."}]
 
 DO NOT include markdown code blocks, just raw JSON.
