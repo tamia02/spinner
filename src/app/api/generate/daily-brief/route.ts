@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getGeminiModel, withRetry } from "@/lib/ai-utils";
+import { generateContentSmart } from "@/lib/ai-utils";
 import { fetchLatestCreatorPosts } from "@/lib/creator-utils";
 import { getTopSubredditPosts } from "@/lib/reddit-utils";
 import { getStyleProfile } from "@/lib/style-profiles";
@@ -50,8 +50,6 @@ export async function POST(req: Request) {
         const { styleProfileId } = await req.json();
         const style = getStyleProfile(styleProfileId);
 
-        // 4. Generate 2 Daily Suggestions with Gemini
-        const model = getGeminiModel();
         const prompt = `
 You are a world-class LinkedIn ghostwriter specializing in the "${style.name}" writing style.
 Your client is a top professional who wants to build a personal brand by sharing daily insights.
@@ -93,8 +91,7 @@ STRICT RULES:
 DO NOT include markdown code blocks, just raw JSON.
 `;
 
-        const result = await withRetry(() => model.generateContent(prompt));
-        const responseText = result.response.text();
+        const responseText = await generateContentSmart(prompt);
         const suggestedPosts = parseAiJson<any[]>(responseText);
 
         // 5. Save to DailyBriefing table
