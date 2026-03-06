@@ -40,13 +40,13 @@ export async function GET() {
     // Check Supabase
     try {
         const supabase = await createClient()
-        const { data, error } = await supabase.auth.getSession()
-        if (error) {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error || !user) {
             report.supabase.status = 'failed'
-            report.supabase.error = error.message
+            report.supabase.error = error?.message || 'No user found'
         } else {
             report.supabase.status = 'connected'
-            report.supabase.session = !!data.session
+            report.supabase.session = true
         }
     } catch (err: any) {
         report.supabase.status = 'failed'

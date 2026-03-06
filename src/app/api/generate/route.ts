@@ -65,7 +65,7 @@ function getPlatformPrompt(platform: string, profile: string, sourceText: string
 
     const baseDirectives: Record<string, string> = {
         'twitter': `Write exactly ONE high-impact 3-tweet thread from the source content using a ${toneGuide} tone. Use 🧵 for the first tweet. Number them (1/3, 2/3, 3/3). Short, punchy sentences. Provide only the best version. Do not offer multiple options. No hashtags.`,
-        'linkedin': `Write a LinkedIn post with clear spacing (one idea per paragraph) and a strong opening line. Tone: ${toneGuide}. End with an engaging question. No hashtags.`,
+        'linkedin': `Write a high-authority LinkedIn post that positions me as an expert curator in AI and tech. IMPORTANT: If the source is a personal story or achievement (e.g., "How I grew my audience"), do NOT claim those achievements as mine. Instead, extract the key lessons, strategies, or insights and share them as a value-add breakdown for my audience. Focus on the "so what" for the industry. Use a magnetic hook, clear paragraph breaks, and a ${toneGuide} tone. End with a thought-provoking question. No hashtags.`,
         'instagram': `Write an Instagram caption that captures the most interesting or emotional angle from the source. Tone: ${toneGuide}. No hashtags.`,
         'newsletter': `Write a short newsletter summary (3-4 paragraphs) from the source. Tone: ${toneGuide}. Include a catchy subject line at the top. Use bullet points for key takeaways. No hashtags.`,
         'blog': `Write a blog post from the source content. Tone: ${toneGuide}. Include: one H1 title, a brief intro, 2-3 H2 subheadings with content, and a brief conclusion. No hashtags.`
@@ -93,17 +93,28 @@ OUTPUT:
 `;
 }
 
+import { z } from "zod";
+
+const generateSchema = z.object({
+    source: z.string().min(1, "Source text or URL is required"),
+    platforms: z.array(z.string()).min(1, "At least one platform is required"),
+    profile: z.string().optional(),
+    profileId: z.string().uuid().optional(),
+});
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { source, platforms, profile, profileId } = body;
+        const result = generateSchema.safeParse(body);
 
-        if (!source || !platforms || platforms.length === 0) {
+        if (!result.success) {
             return NextResponse.json(
-                { error: "Source text/URL and at least one platform are required." },
+                { error: "Validation failed", details: result.error.format() },
                 { status: 400 }
             );
         }
+
+        const { source, platforms, profile, profileId } = result.data;
 
         // Get user for DB save (optional - won't block generation if not authed)
         const supabase = await createClient();
@@ -135,7 +146,7 @@ export async function POST(req: Request) {
         const generated = [];
         for (const p of platforms) {
             try {
-                const prompt = getPlatformPrompt(p, profile, processedSource, writingStyle);
+                const prompt = getPlatformPrompt(p, profile || 'professional', processedSource, writingStyle);
                 const result = await withRetry(() => model.generateContent(prompt));
                 const responseText = result.response.text();
                 generated.push({ platform: p, content: responseText.trim() });

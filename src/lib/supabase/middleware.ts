@@ -28,10 +28,21 @@ export async function updateSession(request: NextRequest) {
     // IMPORTANT: Avoid writing logic between createServerClient and supabase.auth.getUser()
     const { data: { user } } = await supabase.auth.getUser()
 
-    const protectedPaths = ['/dashboard']
-    const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
+    // Publicly accessible routes
+    const publicPaths = ['/login', '/', '/auth/callback']
+    const isPublic = publicPaths.some(p =>
+        request.nextUrl.pathname === p ||
+        request.nextUrl.pathname.startsWith('/api/auth/') ||
+        request.nextUrl.pathname.startsWith('/auth/callback/')
+    )
 
-    if (isProtected && !user) {
+    // Security Headers
+    supabaseResponse.headers.set('X-Frame-Options', 'DENY')
+    supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff')
+    supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    supabaseResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+
+    if (!isPublic && !user) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
