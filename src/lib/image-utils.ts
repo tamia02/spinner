@@ -14,10 +14,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export async function generateHuggingFaceImage(prompt: string): Promise<Buffer> {
     if (!HF_API_KEY) throw new Error("HUGGINGFACE_API_KEY is not set");
 
-    // Using FLUX.1-schnell for best text-in-image performance
     const model = "black-forest-labs/FLUX.1-schnell";
     const response = await fetch(
-        `https://api-inference.huggingface.co/models/${model}`,
+        `https://router.huggingface.co/models/${model}`,
         {
             headers: {
                 Authorization: `Bearer ${HF_API_KEY}`,

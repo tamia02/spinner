@@ -19,22 +19,29 @@ export function parseAiJson<T>(text: string): T {
     try {
         return JSON.parse(cleaned) as T;
     } catch (error: any) {
-        // 2. If it fails, it might be due to raw control characters (like newlines) inside strings
-        // We can try to escape them. This is a common AI error.
+        // 2. Try to fix unescaped double quotes inside values
+        // This regex looks for double quotes that aren't preceding a colony or following one (simplified heuristic)
         try {
-            // Replace literal newlines/tabs with escaped versions IF they are inside quotes
-            // This regex handles characters inside double quotes
-            const fixed = cleaned.replace(/"([^"]*)"/g, (match, content) => {
-                return '"' + content
-                    .replace(/\n/g, '\\n')
-                    .replace(/\r/g, '\\r')
-                    .replace(/\t/g, '\\t') + '"';
-            });
+            const fixed = cleaned
+                .replace(/\\n/g, "\\n") // Preserve existing escapes
+                .replace(/([^\\])"/g, '$1\\"') // Escape all quotes
+                .replace(/^\\"/g, '"') // Unescape start
+                .replace(/\\"\s*:/g, '":') // Unescape keys
+                .replace(/:\s*\\"/g, ':"') // Unescape value starts
+                .replace(/\\"\s*}/g, '"}') // Unescape value ends
+                .replace(/\\"\s*,/g, '",') // Unescape separators
+                .replace(/\\"\s*\]/g, '"]'); // Unescape array ends
+
             return JSON.parse(fixed) as T;
         } catch (innerError) {
-            console.error("[JSON-PARSE-ERROR] Raw text:", text);
-            console.error("[JSON-PARSE-ERROR] Cleaned text:", cleaned);
-            throw new Error(`Failed to parse AI response: ${error.message}`);
+            // 3. Fallback to a super-aggressive newline/control character fix
+            try {
+                const fixed = cleaned.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+                return JSON.parse(fixed) as T;
+            } catch (finalError) {
+                console.error("[JSON-PARSE-ERROR] Raw text:", text);
+                throw new Error(`Failed to parse AI response: ${error.message}`);
+            }
         }
     }
 }
