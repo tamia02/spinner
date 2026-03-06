@@ -19,29 +19,30 @@ export function parseAiJson<T>(text: string): T {
     try {
         return JSON.parse(cleaned) as T;
     } catch (error: any) {
-        // 2. Try to fix unescaped double quotes inside values
-        // This regex looks for double quotes that aren't preceding a colony or following one (simplified heuristic)
+        // 2. Surgical cleanup for common AI JSON mistakes
         try {
-            const fixed = cleaned
-                .replace(/\\n/g, "\\n") // Preserve existing escapes
-                .replace(/([^\\])"/g, '$1\\"') // Escape all quotes
-                .replace(/^\\"/g, '"') // Unescape start
-                .replace(/\\"\s*:/g, '":') // Unescape keys
-                .replace(/:\s*\\"/g, ':"') // Unescape value starts
-                .replace(/\\"\s*}/g, '"}') // Unescape value ends
-                .replace(/\\"\s*,/g, '",') // Unescape separators
-                .replace(/\\"\s*\]/g, '"]'); // Unescape array ends
+            // Handle unescaped newlines and control characters
+            let fixed = cleaned
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
 
-            return JSON.parse(fixed) as T;
-        } catch (innerError) {
-            // 3. Fallback to a super-aggressive newline/control character fix
+            // Try parsing after basic control char cleanup
             try {
-                const fixed = cleaned.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
                 return JSON.parse(fixed) as T;
-            } catch (finalError) {
-                console.error("[JSON-PARSE-ERROR] Raw text:", text);
-                throw new Error(`Failed to parse AI response: ${error.message}`);
+            } catch (e) {
+                // 3. More aggressive: deal with unescaped double quotes inside values
+                // We'll replace quotes only if they're not part of JSON syntax (e.g., ":")
+                // This is a heuristic that works well for post content.
+                fixed = fixed.replace(/"([^"]*)"/g, (match, inner) => {
+                    // Re-escape the inner content's double quotes
+                    return '"' + inner.replace(/(?<!\\)"/g, '\\"') + '"';
+                });
+                return JSON.parse(fixed) as T;
             }
+        } catch (innerError) {
+            console.error("[JSON-PARSE-ERROR] Raw text:", text);
+            throw new Error(`Failed to parse AI response: ${error.message}`);
         }
     }
 }
