@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { getGeminiModel, withRetry } from "@/lib/ai-utils";
 import { getStyleProfile } from "@/lib/style-profiles";
+import { parseAiJson } from "@/lib/json-utils";
 
 export async function POST(req: Request) {
     try {
@@ -50,9 +51,8 @@ DO NOT include markdown code blocks, just raw JSON.
 
         const model = getGeminiModel();
         const result = await withRetry(() => model.generateContent(prompt));
-        const responseText = result.response.text().trim();
-        const jsonContent = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
-        const sequence = JSON.parse(jsonContent);
+        const responseText = result.response.text();
+        const sequence = parseAiJson<any[]>(responseText);
 
         // Schedule these 14 posts
         const now = new Date();

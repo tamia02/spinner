@@ -5,6 +5,7 @@ import { getGeminiModel, withRetry } from "@/lib/ai-utils";
 import { fetchLatestCreatorPosts } from "@/lib/creator-utils";
 import { getTopSubredditPosts } from "@/lib/reddit-utils";
 import { getStyleProfile } from "@/lib/style-profiles";
+import { parseAiJson } from "@/lib/json-utils";
 
 export async function POST(req: Request) {
     try {
@@ -93,9 +94,8 @@ DO NOT include markdown code blocks, just raw JSON.
 `;
 
         const result = await withRetry(() => model.generateContent(prompt));
-        const responseText = result.response.text().trim();
-        const jsonContent = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
-        const suggestedPosts = JSON.parse(jsonContent);
+        const responseText = result.response.text();
+        const suggestedPosts = parseAiJson<any[]>(responseText);
 
         // 5. Save to DailyBriefing table
         const briefingPromises = suggestedPosts.map((post: any, i: number) =>
