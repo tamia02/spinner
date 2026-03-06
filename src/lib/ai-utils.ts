@@ -77,7 +77,7 @@ export function getHFClient() {
     }
     return new OpenAI({
         apiKey,
-        baseURL: "https://api-inference.huggingface.co/v1/"
+        baseURL: "https://router.huggingface.co/v1/"
     });
 }
 
