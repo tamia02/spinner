@@ -17,7 +17,7 @@ export async function generateHuggingFaceImage(prompt: string): Promise<Buffer> 
     // Using FLUX.1-schnell for best text-in-image performance
     const model = "black-forest-labs/FLUX.1-schnell";
     const response = await fetch(
-        `https://router.huggingface.co/hf-test-utils/inference-proxy/m/${model}`,
+        `https://api-inference.huggingface.co/models/${model}`,
         {
             headers: {
                 Authorization: `Bearer ${HF_API_KEY}`,

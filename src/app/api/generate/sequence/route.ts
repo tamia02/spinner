@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateContentSmart } from "@/lib/ai-utils";
 import { getStyleProfile } from "@/lib/style-profiles";
 import { parseAiJson } from "@/lib/json-utils";
+import { generateMinimalistGraphic } from "@/lib/image-utils";
 
 export async function POST(req: Request) {
     try {
@@ -52,9 +53,33 @@ DO NOT include markdown code blocks, just raw JSON.
         const responseText = await generateContentSmart(prompt);
         const sequence = parseAiJson<any[]>(responseText);
 
-        // Schedule these 14 posts
+        // 2. Generate graphics for each post (Insight extraction + Image gen)
+        // We'll do this sequentially to avoid HF rate limits
+        const sequenceWithGraphics = [];
+        for (const post of sequence) {
+            try {
+                // Extract insight for the graphic
+                const insightPrompt = `
+                    Extract the single most punchy, inspirational, or educational 1-sentence insight from this LinkedIn post.
+                    Target length: 3 to 7 words. Return ONLY the text.
+                    
+                    POST: "${post.content}"
+                `;
+                const insight = await generateContentSmart(insightPrompt);
+                const cleanedInsight = insight.trim().replace(/^"|"$/g, '');
+
+                // Generate and upload image
+                const graphicUrl = await generateMinimalistGraphic(cleanedInsight);
+                sequenceWithGraphics.push({ ...post, graphicUrl });
+            } catch (err) {
+                console.error("[SEQUENCE-GRAPHIC-ERROR]", err);
+                sequenceWithGraphics.push({ ...post, graphicUrl: null });
+            }
+        }
+
+        // 3. Schedule these 14 posts
         const now = new Date();
-        const schedulePromises = sequence.map((post: any, index: number) => {
+        const schedulePromises = sequenceWithGraphics.map((post: any, index: number) => {
             const scheduledDate = new Date(now);
             scheduledDate.setDate(now.getDate() + post.day);
             // Morning at 9am, Afternoon at 4pm
@@ -64,6 +89,7 @@ DO NOT include markdown code blocks, just raw JSON.
                 data: {
                     userId: user.id,
                     content: post.content,
+                    graphicUrl: post.graphicUrl,
                     platform: "LINKEDIN",
                     scheduledAt: scheduledDate,
                     status: "PENDING"

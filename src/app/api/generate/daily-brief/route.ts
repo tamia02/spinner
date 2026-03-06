@@ -6,6 +6,7 @@ import { fetchLatestCreatorPosts } from "@/lib/creator-utils";
 import { getTopSubredditPosts } from "@/lib/reddit-utils";
 import { getStyleProfile } from "@/lib/style-profiles";
 import { parseAiJson } from "@/lib/json-utils";
+import { generateMinimalistGraphic } from "@/lib/image-utils";
 
 export async function POST(req: Request) {
     try {
@@ -94,12 +95,27 @@ DO NOT include markdown code blocks, just raw JSON.
         const responseText = await generateContentSmart(prompt);
         const suggestedPosts = parseAiJson<any[]>(responseText);
 
-        // 5. Save to DailyBriefing table
-        const briefingPromises = suggestedPosts.map((post: any, i: number) =>
+        // 5. Generate Graphics for each suggestion
+        const postsWithGraphics = [];
+        for (const post of suggestedPosts) {
+            try {
+                const insightPrompt = `Extract the single most punchy 1-sentence insight from this post (3-7 words). Return ONLY the text. Post: "${post.content}"`;
+                const insight = await generateContentSmart(insightPrompt);
+                const graphicUrl = await generateMinimalistGraphic(insight.trim().replace(/^"|"$/g, ''));
+                postsWithGraphics.push({ ...post, graphicUrl });
+            } catch (err) {
+                console.error("[DAILY-BRIEF-GRAPHIC-ERROR]", err);
+                postsWithGraphics.push({ ...post, graphicUrl: null });
+            }
+        }
+
+        // 6. Save to DailyBriefing table
+        const briefingPromises = postsWithGraphics.map((post: any, i: number) =>
             prisma.dailyBriefing.create({
                 data: {
                     userId: user.id,
                     content: post.content,
+                    graphicUrl: post.graphicUrl,
                     sourceUrl: sourceUrls[i % sourceUrls.length],
                     status: "PENDING"
                 }

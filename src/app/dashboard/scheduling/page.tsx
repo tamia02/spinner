@@ -7,6 +7,7 @@ interface ScheduledPost {
     id: string;
     platform: string;
     content: string;
+    graphicUrl?: string;
     scheduledAt: string;
     status: string;
 }
@@ -76,8 +77,8 @@ export default function SchedulingPage() {
                                         {post.platform}
                                     </span>
                                     <span className={`font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wider px-2 py-1 ${post.status === 'POSTED' ? 'text-green-600 bg-green-50' :
-                                            post.status === 'FAILED' ? 'text-red-500 bg-red-50' :
-                                                'text-gray-500 bg-gray-100'
+                                        post.status === 'FAILED' ? 'text-red-500 bg-red-50' :
+                                            'text-gray-500 bg-gray-100'
                                         }`}>
                                         {post.status}
                                     </span>
@@ -85,6 +86,11 @@ export default function SchedulingPage() {
                                 <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 mb-4">
                                     {post.content}
                                 </p>
+                                {post.graphicUrl && (
+                                    <div className="mb-4 border border-gray-100 p-1 w-32 aspect-[4/5] bg-gray-50 flex-shrink-0">
+                                        <img src={post.graphicUrl} alt="Scheduled Graphic" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2 font-['IBM_Plex_Mono'] text-[10px] text-gray-400">
                                     <Clock className="h-3 w-3" />
                                     {new Date(post.scheduledAt).toLocaleString('en-US', {
