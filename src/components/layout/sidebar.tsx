@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Mic, BarChart, Settings, Calendar, GitCompare } from "lucide-react";
+import { LayoutDashboard, FileText, Mic, BarChart, Settings, Calendar, GitCompare, Sparkles } from "lucide-react";
 
 const mainRoutes = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Autopilot", href: "/dashboard/autopilot", icon: Sparkles },
     { label: "Content Library", href: "/dashboard/library", icon: FileText },
     { label: "Voice Profiles", href: "/dashboard/profiles", icon: Mic },
     { label: "Analytics", href: "/dashboard/analytics", icon: BarChart },
