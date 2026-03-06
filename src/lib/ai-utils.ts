@@ -5,10 +5,10 @@ import OpenAI from "openai";
  * Common configuration for AI models to ensure consistency across the app.
  */
 export const AI_CONFIG = {
-    // Reverting to Gemini for written content as per user request
+    // Switching to 2.5-flash which is verified to be working for this API key
     DEFAULT_PROVIDER: "gemini" as "openai" | "gemini",
-    DEFAULT_MODEL: "gemini-2.0-flash",
-    GEMINI_FALLBACK_MODEL: "gemini-2.0-flash",
+    DEFAULT_MODEL: "gemini-2.5-flash",
+    GEMINI_FALLBACK_MODEL: "gemini-2.5-flash",
     MAX_RETRIES: 3,
     INITIAL_DELAY: 1000, // 1 second
 };
