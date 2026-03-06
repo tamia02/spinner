@@ -5,12 +5,13 @@ import OpenAI from "openai";
  * Common configuration for AI models to ensure consistency across the app.
  */
 export const AI_CONFIG = {
-    // Switching to 2.5-flash which is verified to be working for this API key
+    // gemini-flash-latest aliased to 1.5-flash which has higher free-tier quotas (1500 RPM / 1M TPM)
+    // unlike 2.0/2.5 which have low daily limits on this project.
     DEFAULT_PROVIDER: "gemini" as "openai" | "gemini",
-    DEFAULT_MODEL: "gemini-2.5-flash",
-    GEMINI_FALLBACK_MODEL: "gemini-2.5-flash",
+    DEFAULT_MODEL: "gemini-flash-latest",
+    GEMINI_FALLBACK_MODEL: "gemini-pro-latest",
     MAX_RETRIES: 3,
-    INITIAL_DELAY: 1000, // 1 second
+    INITIAL_DELAY: 1000,
 };
 
 /**
