@@ -1,7 +1,9 @@
 import { prisma } from "./prisma";
 
+// Utility for managing and refreshing OAuth tokens
+
 export async function refreshTwitterToken(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } }) as any;
     if (!user?.twitterRefreshToken) throw new Error("No Twitter refresh token found");
 
     const clientId = process.env.TWITTER_CLIENT_ID || "";
@@ -35,18 +37,18 @@ export async function refreshTwitterToken(userId: string) {
             twitterToken: data.access_token,
             twitterRefreshToken: data.refresh_token,
             twitterExpiresAt: expiresAt
-        }
+        } as any
     });
 
     return data.access_token;
 }
 
 export async function getValidTwitterToken(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } }) as any;
     if (!user?.twitterToken) return null;
 
     // If token expires in less than 5 minutes, refresh it
-    const isExpired = user.twitterExpiresAt && (user.twitterExpiresAt.getTime() - Date.now() < 5 * 60 * 1000);
+    const isExpired = user.twitterExpiresAt && (new Date(user.twitterExpiresAt).getTime() - Date.now() < 5 * 60 * 1000);
 
     if (isExpired || !user.twitterExpiresAt) {
         try {
@@ -61,7 +63,7 @@ export async function getValidTwitterToken(userId: string) {
 }
 
 export async function refreshLinkedinToken(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } }) as any;
     if (!user?.linkedinRefreshToken) throw new Error("No LinkedIn refresh token found");
 
     const clientId = process.env.LINKEDIN_CLIENT_ID || "";
@@ -93,17 +95,17 @@ export async function refreshLinkedinToken(userId: string) {
             linkedinToken: data.access_token,
             linkedinRefreshToken: data.refresh_token,
             linkedinExpiresAt: expiresAt
-        }
+        } as any
     });
 
     return data.access_token;
 }
 
 export async function getValidLinkedinToken(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } }) as any;
     if (!user?.linkedinToken) return null;
 
-    const isExpired = user.linkedinExpiresAt && (user.linkedinExpiresAt.getTime() - Date.now() < 5 * 60 * 1000);
+    const isExpired = user.linkedinExpiresAt && (new Date(user.linkedinExpiresAt).getTime() - Date.now() < 5 * 60 * 1000);
 
     if (isExpired) {
         try {
